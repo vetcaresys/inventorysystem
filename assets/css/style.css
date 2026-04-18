@@ -1,0 +1,384 @@
+/* eGov Ph Colors & Variables */
+:root {
+    --egov-navy: #0e1e38;      /* Primary Background / Nav */
+    --egov-blue: #0056b3;      /* Primary Action Blue */
+    --egov-cyan: #00d4ff;      /* Tech/Accent Cyan */
+    --egov-yellow: #ffc107;    /* Official Yellow Accent */
+    --egov-red: #dc3545;       /* Danger/Highlight Red */
+    --egov-white: #ffffff;
+    --egov-bg-light: #f4f7f6;
+}
+
+/* Global Styles */
+body {
+    background-color: var(--egov-navy);
+    min-height: 100vh;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background-image: radial-gradient(circle at 10% 20%, rgba(0, 86, 179, 0.3) 0%, rgba(14, 30, 56, 1) 90%);
+    margin: 0;
+    padding: 0; /* Changed to 0 for general pages */
+}
+
+/* Reusable Container & Utility */
+.border-top-gov {
+    border-top: 4px solid var(--egov-yellow) !important;
+}
+
+.text-egov-cyan {
+    color: var(--egov-cyan) !important;
+}
+
+/* Login Page Specifics */
+.login-container {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 900px;
+    background: white;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+}
+
+.login-page-body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 15px;
+}
+.egov-banner {
+    background: linear-gradient(135deg, #0d47a1 0%, #1565c0 100%);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 3rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.egov-banner::before {
+    content: '';
+    position: absolute;
+    top: -50px;
+    right: -50px;
+    width: 150px;
+    height: 150px;
+    background: var(--egov-yellow);
+    border-radius: 50%;
+    opacity: 0.15;
+}
+
+.egov-banner::after {
+    content: '';
+    position: absolute;
+    bottom: -30px;
+    left: -30px;
+    width: 100px;
+    height: 100px;
+    background: var(--egov-red);
+    border-radius: 50%;
+    opacity: 0.1;
+}
+
+.form-section {
+    padding: 3rem;
+    background: white;
+}
+
+/* Buttons & Inputs */
+.btn-egov {
+    background: var(--egov-navy);
+    color: white;
+    border: none;
+    transition: all 0.3s;
+}
+
+.btn-egov:hover {
+    background: var(--egov-blue);
+    color: white;
+    transform: translateY(-2px);
+}
+
+.form-floating > .form-control:focus {
+    border-color: var(--egov-blue);
+    box-shadow: 0 0 0 0.25rem rgba(0, 86, 179, 0.25);
+}
+
+/* Dashboard Card Enhancements (For Admin/Staff Pages) */
+.egov-card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    transition: transform 0.2s;
+}
+
+.egov-card:hover {
+    transform: translateY(-3px);
+}
+
+/* Sidebar & Layout Enhancements */
+#sidebar {
+    width: 260px;
+    height: 100vh;
+    position: fixed;
+    background: var(--egov-navy); /* PSA Navy */
+    border-right: 1px solid rgba(255,255,255,0.1);
+    transition: all 0.3s;
+    z-index: 1000;
+}
+
+#sidebar .nav-link {
+    color: rgba(255, 255, 255, 0.8);
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: 0.2s;
+    border-left: 4px solid transparent;
+}
+
+#sidebar .nav-link:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--egov-cyan);
+}
+
+#sidebar .nav-link.active {
+    background: rgba(0, 212, 255, 0.1); /* Cyan glow */
+    color: var(--egov-cyan);
+    font-weight: bold;
+    border-left: 4px solid var(--egov-yellow); /* Official Accent */
+}
+
+#main-content {
+    margin-left: 260px;
+    padding: 25px;
+    min-height: 100vh;
+    background-color: var(--egov-bg-light); /* Clean light gray */
+}
+
+.navbar-custom {
+    background: white;
+    border-bottom: 3px solid var(--egov-yellow); /* eGov Ribbon */
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+}
+/* Sidebar Mobile Logic */
+@media (max-width: 768px) {
+    #sidebar {
+        margin-left: -260px; /* Hide sidebar off-screen */
+    }
+    
+    #sidebar.active {
+        margin-left: 0; /* Slide in when active */
+        box-shadow: 10px 0 25px rgba(0,0,0,0.3);
+    }
+
+    #main-content {
+        margin-left: 0 !important; /* Full width on mobile */
+        padding: 15px;
+    }
+
+    .navbar-custom {
+        margin-top: 10px;
+    }
+}
+
+/* Toggle Button Styling */
+#sidebar-toggle {
+    background: var(--egov-navy);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+    display: none; /* Hidden on desktop */
+}
+
+@media (max-width: 768px) {
+    #sidebar-toggle {
+        display: inline-block; /* Show on mobile */
+    }
+}
+
+/* Overlay for clicking outside sidebar on mobile */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0,0,0,0.5);
+    z-index: 999;
+}
+
+.sidebar-overlay.active {
+    display: block;
+}
+ /* Specific Mobile Tweak for Infinix GT 20 Pro & High Aspect Ratio Screens */
+        @media (max-width: 450px) {
+            .hero-section { padding: 4rem 1rem !important; }
+            .service-card { margin-bottom: 10px; }
+            .navbar-brand img { width: 30px; }
+        }
+
+        .hero-section {
+            background: var(--egov-navy);
+            background-image: radial-gradient(circle at 10% 20%, rgba(0, 86, 179, 0.4) 0%, rgba(14, 30, 56, 1) 90%);
+            color: white;
+            padding: 6rem 0;
+            border-bottom: 5px solid var(--egov-yellow);
+        }
+
+        .service-card {
+            border: none;
+            border-radius: 20px;
+            transition: all 0.3s ease;
+            background: white;
+            overflow: hidden;
+        }
+
+        .service-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important;
+        }
+
+        .service-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
+            display: inline-block;
+            color: var(--egov-blue);
+        }
+
+        .price-tag {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: var(--egov-navy);
+        }
+
+        .navbar-main {
+            background: white !important;
+            border-bottom: 2px solid #eee;
+        }
+        /* Sticky Footer Fix */
+html, body {
+    height: 100%;
+}
+
+.page-wrapper {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.content-grow {
+    flex: 1 0 auto; /* This pushes the footer down */
+}
+
+footer {
+    flex-shrink: 0; /* Ensures footer doesn't squash */
+}
+
+/* Enhanced Mobile Spacing for Tall Screens (Infinix GT 20 Pro) */
+@media (max-width: 450px) {
+    .container.my-5 {
+        margin-top: 2rem !important;
+        margin-bottom: 2rem !important;
+    }
+    .card.p-4 {
+        padding: 1.5rem !important;
+    }
+}
+@media print {
+    /* Force Landscape Orientation */
+    @page {
+        size: A4 landscape;
+        margin: 10mm;
+    }
+
+    /* Hide UI Elements */
+    #sidebar, #sidebar-toggle, .btn, .sidebar-overlay, .navbar {
+        display: none !important;
+    }
+
+    /* Expand content to full width */
+    #main-content {
+        margin-left: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+    }
+
+    /* Force the table to respect the widths we set */
+    .table {
+        width: 100% !important;
+        table-layout: fixed !important; /* Critical for controlling widths */
+        border-collapse: collapse !important;
+    }
+
+    /* Ensure colors are visible on paper */
+    .bg-light {
+        background-color: #f2f2f2 !important;
+        -webkit-print-color-adjust: exact;
+    }
+    
+    .text-primary { color: #004a99 !important; }
+    .text-danger { color: #b00020 !important; }
+    
+    /* Define column widths */
+    .col-type-form { width: 20%; }
+    .col-beg-inv { width: 10%; }
+    .col-dr-no { width: 15%; }
+    .col-qty { width: 10%; }
+    .col-available { width: 12%; }
+    .col-sold { width: 10%; }
+    .col-returned { width: 12%; }
+    .col-ending { width: 11%; }
+
+    .table td, .table th {
+        word-wrap: break-word !important; /* Forces long text to go to next line */
+        white-space: normal !important;  /* Overrides text-nowrap */
+        overflow: hidden;
+        padding: 6px !important;
+        vertical-align: middle !important;
+        border: 1px solid #000 !important;
+    }
+}
+@media print {
+    @page {
+        size: A4 landscape;
+        margin: 10mm;
+    }
+
+    /* Force the table to respect the widths we set */
+    .table {
+        width: 100% !important;
+        table-layout: fixed !important; /* Critical for controlling widths */
+        border-collapse: collapse !important;
+    }
+
+    /* Define column widths */
+    .col-type-form { width: 20%; }
+    .col-beg-inv { width: 10%; }
+    .col-dr-no { width: 15%; }
+    .col-qty { width: 10%; }
+    .col-available { width: 12%; }
+    .col-sold { width: 10%; }
+    .col-returned { width: 12%; }
+    .col-ending { width: 11%; }
+
+    .table td, .table th {
+        word-wrap: break-word !important; /* Forces long text to go to next line */
+        white-space: normal !important;  /* Overrides text-nowrap */
+        overflow: hidden;
+        padding: 6px !important;
+        vertical-align: middle !important;
+        border: 1px solid #000 !important;
+    }
+}
