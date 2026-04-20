@@ -8,284 +8,210 @@ if (!isset($_SESSION['admin_id'])) {
 }
 
 /* =========================
-   FLASH MESSAGE DEFAULT
+FETCH DATA
 ========================= */
-function setMessage($msg, $type = "success")
-{
-    $_SESSION['message'] = $msg;
-    $_SESSION['message_type'] = $type;
-}
+
+// ALL ITEMS
+$items = $conn->query("SELECT * FROM inventory_items ORDER BY created_at DESC");
+
+// FORMS
+$forms = $conn->query("
+        SELECT i.item_name, f.bundle_size, f.price_per_bundle, f.price_per_piece
+        FROM psa_forms f
+        JOIN inventory_items i ON i.item_id = f.item_id
+    ");
+
+// DEVICES
+$devices = $conn->query("
+        SELECT i.item_name, d.property_no, d.serial_no, d.status, d.location
+        FROM psa_devices d
+        JOIN inventory_items i ON i.item_id = d.item_id
+    ");
+
+// ASSETS
+$assets = $conn->query("
+        SELECT i.item_name, a.property_no, a.brand, a.condition_status, a.location
+        FROM psa_assets a
+        JOIN inventory_items i ON i.item_id = a.item_id
+    ");
 
 /* =========================
-   CIVIL REGISTRY FORM
+INSERT LOGIC
 ========================= */
+// for adding a forms
+if (isset($_POST['add_form'])) {
 
-// ADD ITEM (FORM)
-if (isset($_POST['create_form_item'])) {
+    $name = $_POST['item_name'];
+    $desc = $_POST['description'];
+    $qty = $_POST['quantity'];
+    $status = $_POST['status'];
+
+    $bundle = $_POST['bundle_size'];
+    $bundle_price = $_POST['price_per_bundle'];
+    $piece_price = $_POST['price_per_piece'];
+
+    // FULL insert
+    $stmt = $conn->prepare("
+            INSERT INTO inventory_items 
+            (item_name, category, description, price, quantity, status) 
+            VALUES (?, 'Form', ?, ?, ?, ?)
+        ");
+    $stmt->bind_param("ssdis", $name, $desc, $piece_price, $qty, $status);
+    $stmt->execute();
+
+    $item_id = $stmt->insert_id;
+
+    $stmt2 = $conn->prepare("
+            INSERT INTO psa_forms 
+            (item_id, bundle_size, price_per_bundle, price_per_piece) 
+            VALUES (?, ?, ?, ?)
+        ");
+    $stmt2->bind_param("iidd", $item_id, $bundle, $bundle_price, $piece_price);
+    $stmt2->execute();
+
+    header("Location: admin_inventory.php");
+    exit;
+}
+
+// for adding a device
+if (isset($_POST['add_device'])) {
 
     $name = $_POST['item_name'];
     $desc = $_POST['description'];
     $price = $_POST['price'];
-    $qty = $_POST['qty'];
+    $status = $_POST['status'];
 
-    // DUPLICATE CHECK
-    $check = $conn->prepare("SELECT item_id FROM psa_items WHERE item_name=? AND category='Form'");
-    $check->bind_param("s", $name);
-    $check->execute();
-    $result = $check->get_result();
-
-    if ($result->num_rows > 0) {
-        setMessage("Duplicate entry! Form already exists.", "danger");
-        header("Location: admin_inventory.php");
-        exit;
-    }
-
-    // INSERT ITEM
-    $stmt = $conn->prepare("
-        INSERT INTO psa_items (item_name, category, description, price, quantity)
-        VALUES (?, 'Form', ?, ?, ?)
-    ");
-    $stmt->bind_param("ssdi", $name, $desc, $price, $qty);
-    $stmt->execute();
-
-    $item_id = $conn->insert_id;
-
-    // LEDGER
-    $stmt2 = $conn->prepare("
-        INSERT INTO psa_inventory_ledger (item_id, trans_type, qty, trans_date)
-        VALUES (?, 'Received', ?, CURDATE())
-    ");
-    $stmt2->bind_param("ii", $item_id, $qty);
-    $stmt2->execute();
-
-    setMessage("Form added successfully!");
-    header("Location: admin_inventory.php");
-    exit;
-}
-
-/* =========================
-   SOLD FORM
-========================= */
-if (isset($_POST['sold_form'])) {
-
-    $item_id = $_POST['item_id'];
-    $qty = $_POST['qty'];
-    $buyer = $_POST['buyer'];
-    $address = $_POST['address'];
-
-    $stmt = $conn->prepare("
-        INSERT INTO psa_sales (item_id, buyer_name, address, qty_sold, date_sold)
-        VALUES (?, ?, ?, ?, CURDATE())
-    ");
-    $stmt->bind_param("issi", $item_id, $buyer, $address, $qty);
-    $stmt->execute();
-
-    $stmt2 = $conn->prepare("
-        INSERT INTO psa_inventory_ledger (item_id, trans_type, qty, trans_date)
-        VALUES (?, 'Sold', ?, CURDATE())
-    ");
-    $stmt2->bind_param("ii", $item_id, $qty);
-    $stmt2->execute();
-
-    setMessage("Item sold successfully!");
-    header("Location: admin_inventory.php");
-    exit;
-}
-
-/* =========================
-   RETURN FORM
-========================= */
-if (isset($_POST['return_form'])) {
-
-    $item_id = $_POST['item_id'];
-    $qty = $_POST['qty'];
-
-    $stmt = $conn->prepare("
-        INSERT INTO psa_returns (item_id, qty_returned, date_returned)
-        VALUES (?, ?, CURDATE())
-    ");
-    $stmt->bind_param("ii", $item_id, $qty);
-    $stmt->execute();
-
-    $stmt2 = $conn->prepare("
-        INSERT INTO psa_inventory_ledger (item_id, trans_type, qty, trans_date)
-        VALUES (?, 'Returned_from_PSA', ?, CURDATE())
-    ");
-    $stmt2->bind_param("ii", $item_id, $qty);
-    $stmt2->execute();
-
-    setMessage("Item returned successfully!");
-    header("Location: admin_inventory.php");
-    exit;
-}
-
-/* =========================
-   RESTOCK FORM
-========================= */
-if (isset($_POST['restock_form'])) {
-
-    $item_id = $_POST['item_id'];
-    $qty = $_POST['qty'];
-
-    $stmt = $conn->prepare("
-        INSERT INTO psa_inventory_ledger (item_id, trans_type, qty, trans_date)
-        VALUES (?, 'Received', ?, CURDATE())
-    ");
-    $stmt->bind_param("ii", $item_id, $qty);
-    $stmt->execute();
-
-    setMessage("Restocked successfully!");
-    header("Location: admin_inventory.php");
-    exit;
-}
-
-/* =========================
-   ADD DEVICE
-========================= */
-if (isset($_POST['add_device'])) {
-
-    $type = $_POST['device_type'];
-    $tag = $_POST['inventory_tag'];
     $property = $_POST['property_no'];
-    $officer = $_POST['officer'];
-    $brand = $_POST['brand_model'];
-    $serial = $_POST['serial'];
-    $date = $_POST['date_acquired'];
-    $cost = $_POST['cost'];
+    $serial = $_POST['serial_no'];
     $location = $_POST['location'];
-    $desc = $_POST['description'];
 
-    // INSERT ITEM
     $stmt = $conn->prepare("
-        INSERT INTO psa_items (item_name, category, description)
-        VALUES (?, 'Device', ?)
-    ");
-    $stmt->bind_param("ss", $type, $desc);
+            INSERT INTO inventory_items 
+            (item_name, category, description, price, status) 
+            VALUES (?, 'Device', ?, ?, ?)
+        ");
+    $stmt->bind_param("ssdis", $name, $desc, $price, $qty, $status);
     $stmt->execute();
 
-    $item_id = $conn->insert_id;
+    $item_id = $stmt->insert_id;
 
-    // DEVICE DETAILS
     $stmt2 = $conn->prepare("
-        INSERT INTO psa_item_devices
-        (item_id, inventory_tag, property_no, accountable_officer, brand_model, serial_no, date_acquired, acquisition_cost, location)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ");
-
-    $stmt2->bind_param(
-        "issssssds",
-        $item_id,
-        $tag,
-        $property,
-        $officer,
-        $brand,
-        $serial,
-        $date,
-        $cost,
-        $location
-    );
-
+            INSERT INTO psa_devices 
+            (item_id, property_no, serial_no, location) 
+            VALUES (?, ?, ?, ?)
+        ");
+    $stmt2->bind_param("isss", $item_id, $property, $serial, $location);
     $stmt2->execute();
 
-    setMessage("Device added successfully!");
     header("Location: admin_inventory.php");
     exit;
 }
 
-/* =========================
-   BORROW DEVICE
-========================= */
-if (isset($_POST['borrow_device'])) {
-
-    $device_id = $_POST['device_id'];
-    $borrower = $_POST['borrower'];
-    $date = $_POST['date_borrowed'];
-
-    $stmt = $conn->prepare("
-        UPDATE psa_item_devices
-        SET status='Borrowed'
-        WHERE device_id=?
-    ");
-    $stmt->bind_param("i", $device_id);
-    $stmt->execute();
-
-    $stmt2 = $conn->prepare("
-        INSERT INTO psa_device_borrow (device_id, borrower_name, date_borrowed)
-        VALUES (?, ?, ?)
-    ");
-    $stmt2->bind_param("iss", $device_id, $borrower, $date);
-    $stmt2->execute();
-
-    setMessage("Device borrowed successfully!");
-    header("Location: admin_inventory.php");
-    exit;
-}
-
-/* =========================
-   RETURN DEVICE
-========================= */
-if (isset($_POST['return_device'])) {
-
-    $device_id = $_POST['device_id'];
-    $borrower = $_POST['borrower'];
-    $date = $_POST['date_returned'];
-
-    $stmt = $conn->prepare("
-        UPDATE psa_item_devices
-        SET status='Available'
-        WHERE device_id=?
-    ");
-    $stmt->bind_param("i", $device_id);
-    $stmt->execute();
-
-    $stmt2 = $conn->prepare("
-        INSERT INTO psa_device_return (device_id, borrower_name, date_returned)
-        VALUES (?, ?, ?)
-    ");
-    $stmt2->bind_param("iss", $device_id, $borrower, $date);
-    $stmt2->execute();
-
-    setMessage("Device returned successfully!");
-    header("Location: admin_inventory.php");
-    exit;
-}
-
-/* =========================
-   ADD ASSET
-========================= */
+// for adding an asset
 if (isset($_POST['add_asset'])) {
 
-    $name = $_POST['asset_name'];
+    $name = $_POST['item_name'];
     $desc = $_POST['description'];
-    $qty = $_POST['quantity'];
     $price = $_POST['price'];
+    $status = $_POST['status'];
+
+    $property = $_POST['property_no'];
+    $brand = $_POST['brand'];
+    $condition = $_POST['condition_status'];
+    $location = $_POST['location'];
 
     $stmt = $conn->prepare("
-        INSERT INTO psa_items (item_name, category, description, price, quantity, status)
-        VALUES (?, 'Asset', ?, ?, ?, 'Available')
-    ");
-
-    $stmt->bind_param("ssdi", $name, $desc, $price, $qty);
+            INSERT INTO inventory_items 
+            (item_name, category, description, price, status) 
+            VALUES (?, 'Asset', ?, ?, ?, ?)
+        ");
+    $stmt->bind_param("ssdis", $name, $desc, $price, $qty, $status);
     $stmt->execute();
 
-    setMessage("Asset added successfully!");
+    $item_id = $stmt->insert_id;
+
+    $stmt2 = $conn->prepare("
+            INSERT INTO psa_assets 
+            (item_id, property_no, brand, condition_status, location) 
+            VALUES (?, ?, ?, ?, ?)
+        ");
+    $stmt2->bind_param("issss", $item_id, $property, $brand, $condition, $location);
+    $stmt2->execute();
+
     header("Location: admin_inventory.php");
     exit;
 }
 
-/* =========================
-   FETCH DATA
-========================= */
+// for POS
+if (isset($_POST['process_sale'])) {
 
-$forms = $conn->query("SELECT * FROM psa_items WHERE category='Form'");
-$devices = $conn->query("
-    SELECT i.item_name, d.*
-    FROM psa_items i
-    JOIN psa_item_devices d ON i.item_id = d.item_id
-");
-$assets = $conn->query("SELECT * FROM psa_items WHERE category='Asset'");
-$allItems = $conn->query("SELECT * FROM psa_items");
+    $item_id = $_POST['item_id'];
+    $qty = $_POST['qty'];
+    $buyer = $_POST['buyer_name'];
+    $address = $_POST['address'];
 
+    $today = date('Y-m-d');
+    $ref = "SALE-" . time();
+
+    // SAVE SALE
+    $stmt = $conn->prepare("
+            INSERT INTO psa_sales 
+            (item_id, buyer_name, address, qty_sold, ref_no, date_sold)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ");
+    $stmt->bind_param("ississ", $item_id, $buyer, $address, $qty, $ref, $today);
+    $stmt->execute();
+
+    // UPDATE LEDGER (IMPORTANT)
+    $stmt2 = $conn->prepare("
+            INSERT INTO psa_inventory_ledger 
+            (item_id, trans_type, qty, trans_date, ref_no)
+            VALUES (?, 'Sold', ?, ?, ?)
+        ");
+    $stmt2->bind_param("iiss", $item_id, $qty, $today, $ref);
+    $stmt2->execute();
+
+    header("Location: admin_inventory.php");
+    exit;
+}
+
+// for checkout
+if (isset($_POST['checkout'])) {
+
+    $cart = json_decode($_POST['cart_data'], true);
+
+    $buyer = $_POST['buyer_name'];
+    $address = $_POST['address'];
+    $today = date('Y-m-d');
+    $ref = "SALE-" . time();
+
+    foreach ($cart as $item) {
+
+        $item_id = $item['id'];
+        $qty = $item['qty'];
+
+        // SAVE SALES
+        $stmt = $conn->prepare("
+            INSERT INTO psa_sales 
+            (item_id, buyer_name, address, qty_sold, ref_no, date_sold)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ");
+        $stmt->bind_param("ississ", $item_id, $buyer, $address, $qty, $ref, $today);
+        $stmt->execute();
+
+        // LEDGER UPDATE
+        $stmt2 = $conn->prepare("
+            INSERT INTO psa_inventory_ledger 
+            (item_id, trans_type, qty, trans_date, ref_no)
+            VALUES (?, 'Sold', ?, ?, ?)
+        ");
+        $stmt2->bind_param("iiss", $item_id, $qty, $today, $ref);
+        $stmt2->execute();
+    }
+
+    header("Location: admin_inventory.php");
+    exit;
+}
 ?>
 
 <!DOCTYPE html>
@@ -294,6 +220,7 @@ $allItems = $conn->query("SELECT * FROM psa_items");
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>Inventory | PSA Admin</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -303,26 +230,38 @@ $allItems = $conn->query("SELECT * FROM psa_items");
 
 <body>
 
+    <!-- SIDEBAR -->
     <div class="sidebar-overlay" id="overlay"></div>
 
-    <!-- SIDEBAR -->
     <div id="sidebar">
         <div class="p-4 text-center border-bottom border-secondary">
-            <h5 class="fw-bold text-white">PSA <span class="text-info">ADMIN</span></h5>
+            <h5 class="fw-bold text-white mb-0">
+                PSA <span class="text-info">ADMIN</span>
+            </h5>
+            <small class="text-white-50">Inventory System</small>
         </div>
 
         <nav class="nav flex-column mt-3">
-            <a href="admin_dashboard.php" class="nav-link"><i class="bi bi-speedometer2"></i> Dashboard</a>
-            <a href="admin_inventory.php" class="nav-link active"><i class="bi bi-database"></i> Inventory</a>
-            <a href="admin_reports.php" class="nav-link"><i class="bi bi-graph-up"></i> Reports</a>
+            <a href="admin_dashboard.php" class="nav-link">
+                <i class="bi bi-speedometer2"></i> Dashboard
+            </a>
+            <a href="admin_inventory.php" class="nav-link active">
+                <i class="bi bi-database"></i> Inventory
+            </a>
+            <a href="admin_reports.php" class="nav-link">
+                <i class="bi bi-bar-chart-line"></i> Reports
+            </a>
             <hr class="mx-3 border-secondary">
-            <a href="../psa_login.html" class="nav-link text-danger"><i class="bi bi-box-arrow-left"></i> Logout</a>
+            <a href="../psa_login.html" class="nav-link text-danger">
+                <i class="bi bi-box-arrow-left"></i> Logout
+            </a>
         </nav>
     </div>
 
     <!-- MAIN -->
     <div id="main-content">
 
+        <!-- NAV -->
         <nav class="navbar navbar-custom shadow-sm mb-4 px-3 rounded-3">
             <button id="sidebar-toggle" class="btn btn-light border-0">
                 <i class="bi bi-list fs-4"></i>
@@ -330,317 +269,350 @@ $allItems = $conn->query("SELECT * FROM psa_items");
             <span class="fw-bold text-muted">Inventory Management</span>
         </nav>
 
-        <!-- for alert -->
-        <?php if (isset($_SESSION['message'])): ?>
-            <div class="alert alert-<?= $_SESSION['message_type'] ?> alert-dismissible fade show">
-                <?= $_SESSION['message'] ?>
-                <button class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
+        <div class="container-fluid px-4">
 
-            <?php unset($_SESSION['message'], $_SESSION['message_type']); ?>
-        <?php endif; ?>
+            <!-- TABS -->
+            <ul class="nav nav-tabs mb-3" id="inventoryTabs">
+                <li class="nav-item">
+                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#all">All Items</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#forms">Forms</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#devices">Devices</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#assets">Assets</button>
+                </li>
+            </ul>
 
-        <div class="container-fluid">
+            <div class="tab-content">
 
-            <!-- CATEGORY BUTTONS -->
-            <div class="mb-4">
-                <button class="btn btn-outline-primary" onclick="showSection('forms')">Forms</button>
-                <button class="btn btn-outline-success" onclick="showSection('devices')">Devices</button>
-                <button class="btn btn-outline-warning" onclick="showSection('assets')">Assets</button>
-                <button class="btn btn-outline-dark" onclick="showSection('all')">All</button>
-            </div>
-
-            <!-- FORMS -->
-            <div id="forms" class="inventory-section">
-
-                <div class="d-flex gap-2 mb-3">
-
-                    <!-- SEARCH -->
-                    <input type="text" class="form-control mb-2 search-box" data-target="formsTable"
-                        placeholder="Search Forms...">
-
-                </div>
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between">
-                        Civil Registry Forms
-
-                        <div>
-                            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addFormModal">
-                                Add Form
-                            </button>
-
-                            <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#soldFormModal">
-                                Sold Form
-                            </button>
-
-                            <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#returnFormModal">
-                                Return Form
-                            </button>
-
-                            <button class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#restockFormModal">
-                                Restock Form
-                            </button>
-                        </div>
-                    </div>
-                    <!-- FORMS TABLE -->
-                    <table id="formsTable" class="table table-bordered text-center align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Form Name</th>
-                                <th>Description</th>
-                                <th>Price</th>
-                                <th>Stock</th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            <tr class="data-row">
-                                <?php while ($f = $forms->fetch_assoc()): ?>
-
-                                    <?php
-                                    $stmt = $conn->prepare("
-                SELECT COALESCE(SUM(
-                    CASE
-                        WHEN trans_type='Received' THEN qty
-                        WHEN trans_type='Sold' THEN -qty
-                        WHEN trans_type='Returned_from_PSA' THEN qty
-                        ELSE 0
-                    END
-                ),0) AS stock
-                FROM psa_inventory_ledger
-                WHERE item_id=?
-            ");
-                                    $stmt->bind_param("i", $f['item_id']);
-                                    $stmt->execute();
-                                    $stock = $stmt->get_result()->fetch_assoc()['stock'];
-                                    ?>
-
-                            <tr>
-                                <td><?= htmlspecialchars($f['item_name']) ?></td>
-                                <td><?= htmlspecialchars($f['description']) ?></td>
-                                <td>₱<?= number_format($f['price'], 2) ?></td>
-                                <td><span class="badge bg-primary"><?= $stock ?></span></td>
-                            </tr>
-
-                        <?php endwhile; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- DEVICES -->
-            <div id="devices" class="inventory-section d-none">
-                <div class="d-flex gap-2 mb-3">
-
-                    <!-- SEARCH -->
-                    <input type="text" class="form-control mb-2 search-box" data-target="devicesTable"
-                        placeholder="Search Devices...">
-
-                </div>
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between">
-                        IT Devices
-
-                        <div>
-                            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addDeviceModal">
-                                Add Device
-                            </button>
-
-                            <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#borrowDeviceModal">
-                                Borrow Device
-                            </button>
-
-                            <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#returnDeviceModal">
-                                Return Device
-                            </button>
-                        </div>
-                    </div>
-                    <!-- DEVICES TABLE -->
-                    <table class="table table-bordered text-center align-middle" id="devicesTable" class="table table-bordered">
-                        <thead class="table-light">
-                            <tr class="data-row">
-                                <th>Device</th>
-                                <th>Tag</th>
-                                <th>Property No</th>
-                                <th>Brand / Model</th>
-                                <th>Serial</th>
-                                <th>Officer</th>
-                                <th>Location</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            <?php while ($d = $devices->fetch_assoc()): ?>
-                                <tr>
-                                    <td><?= htmlspecialchars($d['item_name']) ?></td>
-                                    <td><?= htmlspecialchars($d['inventory_tag']) ?></td>
-                                    <td><?= htmlspecialchars($d['property_no']) ?></td>
-                                    <td><?= htmlspecialchars($d['brand_model']) ?></td>
-                                    <td><?= htmlspecialchars($d['serial_no']) ?></td>
-                                    <td><?= htmlspecialchars($d['accountable_officer']) ?></td>
-                                    <td><?= htmlspecialchars($d['location']) ?></td>
-                                    <td>
-                                        <?php if ($d['status'] == 'Available'): ?>
-                                            <span class="badge bg-success">Available</span>
-                                        <?php else: ?>
-                                            <span class="badge bg-danger">Borrowed</span>
-                                        <?php endif; ?>
-                                    </td>
-                                </tr>
-                            <?php endwhile; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- ASSETS -->
-            <div id="assets" class="inventory-section d-none">
-                <div class="d-flex gap-2 mb-3">
-
-                    <!-- SEARCH -->
-                    <input type="text" class="form-control mb-2 search-box" data-target="assetsTable"
-                        placeholder="Search Assets...">
-
-                </div>
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between">
-                        General Assets
-
-                        <div>
-                            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addAssetModal">
-                                Add Asset
-                            </button>
-                        </div>
-                    </div>
-                    <!-- ASSETS TABLE -->
-                    <table class="table table-bordered text-center align-middle" id="assetsTable" class="table table-bordered">
-                        <thead class="table-light">
-                            <tr class="data-row">
-                                <th>Asset Name</th>
-                                <th>Description</th>
-                                <th>Price</th>
-                                <th>Quantity</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            <?php while ($a = $assets->fetch_assoc()): ?>
-                                <tr>
-                                    <td><?= htmlspecialchars($a['item_name']) ?></td>
-                                    <td><?= htmlspecialchars($a['description']) ?></td>
-                                    <td>₱<?= number_format($a['price'], 2) ?></td>
-                                    <td><?= $a['quantity'] ?></td>
-                                    <td>
-                                        <span class="badge bg-info">
-                                            <?= $a['status'] ?>
-                                        </span>
-                                    </td>
-                                </tr>
-                            <?php endwhile; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- ALL -->
-            <div id="all" class="inventory-section d-none">
-                <div class="d-flex gap-2 mb-3">
-
-                    <!-- SEARCH -->
-                    <input type="text" class="form-control mb-2 search-box" data-target="allTable"
-                        placeholder="Search All Items...">
-
-                </div>
-                <div class="card">
-                    <div class="card-header">All Items</div>
-
-                    <div class="table-responsive">
-                        <!-- ALL ITEMS TABLE -->
-                        <table class="table table-bordered text-center align-middle" id="allTable" class="table table-bordered">
-                            <thead class="table-light">
-                                <tr class="data-row">
-                                    <th>ID</th>
-                                    <th>Name</th>
-                                    <th>Category</th>
-                                    <th>Description</th>
-                                    <th>Price</th>
-                                    <th>Quantity</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-
-                            <tbody>
-                                <?php while ($i = $allItems->fetch_assoc()): ?>
+                <!-- ================= ALL ITEMS ================= -->
+                <div class="tab-pane fade show active" id="all">
+                    <div class="card shadow-sm border-0 rounded-4">
+                        <div class="card-body">
+                            <table class="table table-bordered text-center">
+                                <thead class="bg-light">
                                     <tr>
-                                        <td><?= $i['item_id'] ?></td>
-                                        <td><?= htmlspecialchars($i['item_name']) ?></td>
-                                        <td>
-                                            <span class="badge bg-secondary">
-                                                <?= $i['category'] ?>
-                                            </span>
-                                        </td>
-                                        <td><?= htmlspecialchars($i['description']) ?></td>
-                                        <td>₱<?= number_format($i['price'], 2) ?></td>
-                                        <td><?= $i['quantity'] ?></td>
-                                        <td>
-                                            <?php if ($i['status'] == 'Available'): ?>
-                                                <span class="badge bg-success">Available</span>
-                                            <?php else: ?>
-                                                <span class="badge bg-danger">
-                                                    <?= $i['status'] ?>
-                                                </span>
-                                            <?php endif; ?>
-                                        </td>
+                                        <th>Name</th>
+                                        <th>Category</th>
+                                        <th>Qty</th>
+                                        <th>Status</th>
                                     </tr>
-                                <?php endwhile; ?>
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    <?php while ($row = $items->fetch_assoc()): ?>
+                                        <tr>
+                                            <td><?= htmlspecialchars($row['item_name']) ?></td>
+                                            <td><?= $row['category'] ?></td>
+                                            <td>
+                                                <?php
+                                                if ($row['category'] == 'Form') {
+                                                    echo $row['quantity'];
+                                                } else {
+                                                    echo '—'; // or 1 if you want
+                                                }
+                                                ?>
+                                            </td>
+                                            <td><?= $row['status'] ?></td>
+                                        </tr>
+                                    <?php endwhile; ?>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-
                 </div>
-            </div>
 
+                <!-- ================= FORMS ================= -->
+                <div class="tab-pane fade" id="forms">
+                    <div class="card shadow-sm border-0 rounded-4">
+                        <div class="card-body">
+                            <button class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#addFormModal">
+                                <i class="bi bi-plus-circle"></i> Add Form
+                            </button>
+                            <button class="btn btn-dark mb-3" data-bs-toggle="modal" data-bs-target="#posModal">
+                                <i class="bi bi-cart"></i> Open POS
+                            </button>
+                            <table class="table table-bordered text-center">
+                                <thead class="bg-light">
+                                    <tr>
+                                        <th>Form Name</th>
+                                        <th>Bundle Size</th>
+                                        <th>Bundle Price</th>
+                                        <th>Piece Price</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php while ($row = $forms->fetch_assoc()): ?>
+                                        <tr>
+                                            <td><?= $row['item_name'] ?></td>
+                                            <td><?= $row['bundle_size'] ?></td>
+                                            <td><?= $row['price_per_bundle'] ?></td>
+                                            <td><?= $row['price_per_piece'] ?></td>
+                                        </tr>
+                                    <?php endwhile; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================= DEVICES ================= -->
+                <div class="tab-pane fade" id="devices">
+                    <div class="card shadow-sm border-0 rounded-4">
+                        <div class="card-body">
+                            <button class="btn btn-success mb-3" data-bs-toggle="modal"
+                                data-bs-target="#addDeviceModal">
+                                <i class="bi bi-plus-circle"></i> Add Device
+                            </button>
+                            <table class="table table-bordered text-center">
+                                <thead class="bg-light">
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Property No</th>
+                                        <th>Serial</th>
+                                        <th>Status</th>
+                                        <th>Location</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php while ($row = $devices->fetch_assoc()): ?>
+                                        <tr>
+                                            <td><?= $row['item_name'] ?></td>
+                                            <td><?= $row['property_no'] ?></td>
+                                            <td><?= $row['serial_no'] ?></td>
+                                            <td><?= $row['status'] ?></td>
+                                            <td><?= $row['location'] ?></td>
+                                        </tr>
+                                    <?php endwhile; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================= ASSETS ================= -->
+                <div class="tab-pane fade" id="assets">
+                    <div class="card shadow-sm border-0 rounded-4">
+                        <div class="card-body">
+                            <button class="btn btn-warning mb-3" data-bs-toggle="modal" data-bs-target="#addAssetModal">
+                                <i class="bi bi-plus-circle"></i> Add Asset
+                            </button>
+                            <table class="table table-bordered text-center">
+                                <thead class="bg-light">
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Property No</th>
+                                        <th>Brand</th>
+                                        <th>Condition</th>
+                                        <th>Location</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php while ($row = $assets->fetch_assoc()): ?>
+                                        <tr>
+                                            <td><?= $row['item_name'] ?></td>
+                                            <td><?= $row['property_no'] ?></td>
+                                            <td><?= $row['brand'] ?></td>
+                                            <td><?= $row['condition_status'] ?></td>
+                                            <td><?= $row['location'] ?></td>
+                                        </tr>
+                                    <?php endwhile; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
         </div>
     </div>
+
     <?php include 'form_modals.php'; ?>
-
-    <script>
-        function showSection(section) {
-            document.querySelectorAll('.inventory-section').forEach(e => e.classList.add('d-none'));
-            document.getElementById(section).classList.remove('d-none');
-        }
-
-        document.getElementById('sidebar-toggle').onclick = () => {
-            document.getElementById('sidebar').classList.toggle('active');
-            document.getElementById('overlay').classList.toggle('active');
-        };
-    </script>
-
-    <script>
-        document.querySelectorAll('.search-box').forEach(input => {
-
-            input.addEventListener('keyup', function() {
-
-                const table = document.getElementById(this.dataset.target);
-                const keyword = this.value.toLowerCase();
-
-                const rows = table.querySelectorAll('tbody tr');
-
-                rows.forEach(row => {
-                    const text = row.textContent.toLowerCase();
-
-                    row.style.display = text.includes(keyword) ? '' : 'none';
-                });
-
-            });
-
-        });
-    </script>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
+    <script>
+        const sidebar = document.getElementById('sidebar');
+        const toggleBtn = document.getElementById('sidebar-toggle');
+        const overlay = document.getElementById('overlay');
+
+        toggleBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+        });
+    </script>
+
+    <!-- <script>
+        let cart = [];
+
+        function addToCart() {
+            let select = document.getElementById("itemSelect");
+            let qty = document.getElementById("qty").value;
+
+            let option = select.options[select.selectedIndex];
+
+            if (!option.value || qty <= 0) {
+                alert("Select item and valid qty");
+                return;
+            }
+
+            let item = {
+                id: option.value,
+                name: option.dataset.name,
+                price: parseFloat(option.dataset.price),
+                qty: parseInt(qty)
+            };
+
+            // check if already in cart
+            let existing = cart.find(i => i.id === item.id);
+            if (existing) {
+                existing.qty += item.qty;
+            } else {
+                cart.push(item);
+            }
+
+            renderCart();
+        }
+
+        function renderCart() {
+            let table = document.getElementById("cartTable");
+            let total = 0;
+
+            table.innerHTML = "";
+
+            cart.forEach((item, index) => {
+                let subtotal = item.price * item.qty;
+                total += subtotal;
+
+                table.innerHTML += `
+            <tr>
+                <td>${item.name}</td>
+                <td>₱${item.price}</td>
+                <td>${item.qty}</td>
+                <td>₱${subtotal.toFixed(2)}</td>
+                <td>
+                    <button type="button" class="btn btn-danger btn-sm" onclick="removeItem(${index})">X</button>
+                </td>
+            </tr>
+        `;
+            });
+
+            document.getElementById("grandTotal").innerText = total.toFixed(2);
+
+            // store cart as JSON
+            document.getElementById("cartData").value = JSON.stringify(cart);
+        }
+
+        function removeItem(index) {
+            cart.splice(index, 1);
+            renderCart();
+        }
+    </script> -->
+    <script>
+        let cart = [];
+
+        function addToCart() {
+            let select = document.getElementById("itemSelect");
+            let qty = document.getElementById("qty").value;
+
+            let option = select.options[select.selectedIndex];
+
+            if (!option.value || qty <= 0) {
+                alert("Select item and valid qty");
+                return;
+            }
+
+            let item = {
+                id: option.value,
+                name: option.dataset.name,
+                price: parseFloat(option.dataset.price),
+                qty: parseInt(qty)
+            };
+
+            let existing = cart.find(i => i.id === item.id);
+            if (existing) {
+                existing.qty += item.qty;
+            } else {
+                cart.push(item);
+            }
+
+            renderCart();
+        }
+
+        function renderCart() {
+            let table = document.getElementById("cartTable");
+            let total = 0;
+
+            table.innerHTML = "";
+
+            cart.forEach((item, index) => {
+                let subtotal = item.price * item.qty;
+                total += subtotal;
+
+                table.innerHTML += `
+            <tr>
+                <td>${item.name}</td>
+                <td>₱${item.price}</td>
+                <td>${item.qty}</td>
+                <td>₱${subtotal.toFixed(2)}</td>
+                <td>
+                    <button type="button" class="btn btn-danger btn-sm" onclick="removeItem(${index})">X</button>
+                </td>
+            </tr>
+        `;
+            });
+
+            document.getElementById("grandTotal").innerText = total.toFixed(2);
+
+            // store cart JSON
+            document.getElementById("cartData").value = JSON.stringify(cart);
+
+            computeChange(); // 🔥 recompute when cart updates
+        }
+
+        function removeItem(index) {
+            cart.splice(index, 1);
+            renderCart();
+        }
+
+        function computeChange() {
+            let total = parseFloat(document.getElementById("grandTotal").innerText) || 0;
+            let cash = parseFloat(document.getElementById("cashInput").value) || 0;
+
+            let change = cash - total;
+
+            if (cash === 0) {
+                document.getElementById("changeField").value = "";
+                return;
+            }
+
+            if (change < 0) {
+                document.getElementById("changeField").value = "Insufficient";
+            } else {
+                document.getElementById("changeField").value = "₱ " + change.toFixed(2);
+            }
+        }
+
+        // 🔥 trigger when typing cash
+        document.getElementById("cashInput").addEventListener("input", computeChange);
+    </script>
+
+    <script>
+        function validatePayment() {
+            let total = parseFloat(document.getElementById("grandTotal").innerText) || 0;
+            let cash = parseFloat(document.getElementById("cashInput").value) || 0;
+
+            if (cash < total) {
+                alert("Kulangan ang bayad!");
+                return false;
+            }
+
+            return true;
+        }
+    </script>
 </body>
 
 </html>

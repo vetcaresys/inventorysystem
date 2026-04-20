@@ -1,3 +1,4 @@
+admin_dashboard.php
 <?php
 session_start();
 require '../connectiondb.php';
@@ -8,10 +9,10 @@ if (!isset($_SESSION['admin_id'])) {
 }
 
 /* =========================
-   DASHBOARD DATA (FIXED)
+   DASHBOARD DATA
 ========================= */
 
-// TOTAL FORMS (REAL STOCK BASED)
+// TOTAL FORMS
 $formRes = $conn->query("
     SELECT COALESCE(SUM(
         (
@@ -24,33 +25,45 @@ $formRes = $conn->query("
                 END
             ),0)
             FROM psa_inventory_ledger 
-            WHERE item_id = psa_items.item_id
+            WHERE item_id = inventory_items.item_id
         )
     ),0) as total
-    FROM psa_items 
+    FROM inventory_items 
     WHERE category='Form'
 ");
-$totalForms = $formRes->fetch_assoc()['total'] ?? 0;
+
+$totalForms = 0;
+if ($formRes && $row = $formRes->fetch_assoc()) {
+    $totalForms = $row['total'];
+}
 
 
-// TOTAL DEVICES (FROM DEVICE TABLE)
+// TOTAL DEVICES
 $deviceRes = $conn->query("
     SELECT COUNT(*) as total 
-    FROM psa_item_devices
+    FROM psa_devices
 ");
-$totalDevices = $deviceRes->fetch_assoc()['total'] ?? 0;
+
+$totalDevices = 0;
+if ($deviceRes && $row = $deviceRes->fetch_assoc()) {
+    $totalDevices = $row['total'];
+}
 
 
-// TOTAL ASSETS (SUM QUANTITY)
+// TOTAL ASSETS
 $assetRes = $conn->query("
     SELECT COALESCE(SUM(quantity),0) as total 
-    FROM psa_items 
+    FROM inventory_items 
     WHERE category='Asset'
 ");
-$totalAssets = $assetRes->fetch_assoc()['total'] ?? 0;
+
+$totalAssets = 0;
+if ($assetRes && $row = $assetRes->fetch_assoc()) {
+    $totalAssets = $row['total'];
+}
 
 
-// LOW STOCK (FIXED LEDGER LOGIC)
+// LOW STOCK
 $lowStockQuery = "
 SELECT i.item_name,
 COALESCE(SUM(
@@ -61,7 +74,7 @@ COALESCE(SUM(
         ELSE 0
     END
 ),0) as current_stock
-FROM psa_items i
+FROM inventory_items i
 LEFT JOIN psa_inventory_ledger l ON i.item_id = l.item_id
 WHERE i.category='Form'
 GROUP BY i.item_id
@@ -70,25 +83,30 @@ HAVING current_stock < 50
 
 $lowStockRes = $conn->query($lowStockQuery);
 $lowStock = [];
-while ($row = $lowStockRes->fetch_assoc()) {
-    $lowStock[] = $row;
+
+if ($lowStockRes) {
+    while ($row = $lowStockRes->fetch_assoc()) {
+        $lowStock[] = $row;
+    }
 }
 
 
-// BORROWED DEVICES (FIXED JOIN)
+// BORROWED DEVICES
 $borrowedQuery = "
 SELECT i.item_name, d.serial_no, d.status
-FROM psa_item_devices d
-JOIN psa_items i ON i.item_id = d.item_id
+FROM psa_devices d
+JOIN inventory_items i ON i.item_id = d.item_id
 WHERE d.status = 'Borrowed'
 ";
 
 $borrowedRes = $conn->query($borrowedQuery);
 $borrowedDevices = [];
-while ($row = $borrowedRes->fetch_assoc()) {
-    $borrowedDevices[] = $row;
-}
 
+if ($borrowedRes) {
+    while ($row = $borrowedRes->fetch_assoc()) {
+        $borrowedDevices[] = $row;
+    }
+}
 ?>
 
 <!DOCTYPE html>
