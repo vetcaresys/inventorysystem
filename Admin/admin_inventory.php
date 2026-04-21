@@ -49,6 +49,7 @@ if (isset($_POST['add_form'])) {
     $bundle = $_POST['bundle_size'];
     $bundle_price = $_POST['price_per_bundle'];
     $piece_price = $_POST['price_per_piece'];
+    $custodian = $_POST['custodian'];
 
     // FULL insert
     $stmt = $conn->prepare("
@@ -62,11 +63,11 @@ if (isset($_POST['add_form'])) {
     $item_id = $stmt->insert_id;
 
     $stmt2 = $conn->prepare("
-            INSERT INTO psa_forms 
-            (item_id, bundle_size, price_per_bundle, price_per_piece) 
-            VALUES (?, ?, ?, ?)
-        ");
-    $stmt2->bind_param("iidd", $item_id, $bundle, $bundle_price, $piece_price);
+    INSERT INTO psa_forms 
+    (item_id, bundle_size, price_per_bundle, price_per_piece, custodian) 
+    VALUES (?, ?, ?, ?, ?)
+");
+    $stmt2->bind_param("iidds", $item_id, $bundle, $bundle_price, $piece_price, $custodian);
     $stmt2->execute();
 
     header("Location: admin_inventory.php");
@@ -78,29 +79,51 @@ if (isset($_POST['add_device'])) {
 
     $name = $_POST['item_name'];
     $desc = $_POST['description'];
-    $price = $_POST['price'];
     $status = $_POST['status'];
 
     $property = $_POST['property_no'];
     $serial = $_POST['serial_no'];
     $location = $_POST['location'];
+    $custodian = $_POST['custodian'];
 
+    // NEW FIELDS
+    $inventory_tag = $_POST['inventory_tag'];
+    $brand_model = $_POST['brand_model'];
+    $date_acquired = $_POST['date_acquired'];
+    $cost = $_POST['acquisition_cost'];
+
+    // 1. INSERT INTO inventory_items
     $stmt = $conn->prepare("
-            INSERT INTO inventory_items 
-            (item_name, category, description, price, status) 
-            VALUES (?, 'Device', ?, ?, ?)
-        ");
-    $stmt->bind_param("ssdis", $name, $desc, $price, $qty, $status);
+        INSERT INTO inventory_items 
+        (item_name, category, description, price, quantity, status) 
+        VALUES (?, 'Device', ?, 0, 1, ?)
+    ");
+
+    $stmt->bind_param("sss", $name, $desc, $status);
     $stmt->execute();
 
-    $item_id = $stmt->insert_id;
+    $item_id = $conn->insert_id;
 
+    // 2. INSERT INTO psa_devices (FIXED: custodian na)
     $stmt2 = $conn->prepare("
-            INSERT INTO psa_devices 
-            (item_id, property_no, serial_no, location) 
-            VALUES (?, ?, ?, ?)
-        ");
-    $stmt2->bind_param("isss", $item_id, $property, $serial, $location);
+        INSERT INTO psa_devices 
+        (item_id, inventory_tag, property_no, custodian, brand_model, serial_no, date_acquired, acquisition_cost, location) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ");
+
+    $stmt2->bind_param(
+        "issssssds",
+        $item_id,
+        $inventory_tag,
+        $property,
+        $custodian,
+        $brand_model,
+        $serial,
+        $date_acquired,
+        $cost,
+        $location
+    );
+
     $stmt2->execute();
 
     header("Location: admin_inventory.php");
@@ -112,7 +135,6 @@ if (isset($_POST['add_asset'])) {
 
     $name = $_POST['item_name'];
     $desc = $_POST['description'];
-    $price = $_POST['price'];
     $status = $_POST['status'];
 
     $property = $_POST['property_no'];
@@ -120,22 +142,40 @@ if (isset($_POST['add_asset'])) {
     $condition = $_POST['condition_status'];
     $location = $_POST['location'];
 
+    // NEW FIELDS
+    $date_acquired = $_POST['date_acquired'];
+    $cost = $_POST['acquisition_cost'];
+
+    // 1. INSERT INTO inventory_items (NO PRICE)
     $stmt = $conn->prepare("
-            INSERT INTO inventory_items 
-            (item_name, category, description, price, status) 
-            VALUES (?, 'Asset', ?, ?, ?, ?)
-        ");
-    $stmt->bind_param("ssdis", $name, $desc, $price, $qty, $status);
+        INSERT INTO inventory_items 
+        (item_name, category, description, price, quantity, status) 
+        VALUES (?, 'Asset', ?, 0, 1, ?)
+    ");
+
+    $stmt->bind_param("sss", $name, $desc, $status);
     $stmt->execute();
 
-    $item_id = $stmt->insert_id;
+    $item_id = $conn->insert_id;
 
+    // 2. INSERT INTO psa_assets
     $stmt2 = $conn->prepare("
-            INSERT INTO psa_assets 
-            (item_id, property_no, brand, condition_status, location) 
-            VALUES (?, ?, ?, ?, ?)
-        ");
-    $stmt2->bind_param("issss", $item_id, $property, $brand, $condition, $location);
+        INSERT INTO psa_assets 
+        (item_id, property_no, brand, condition_status, location, acquisition_date, acquisition_cost) 
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ");
+
+    $stmt2->bind_param(
+        "isssssd",
+        $item_id,
+        $property,
+        $brand,
+        $condition,
+        $location,
+        $date_acquired,
+        $cost
+    );
+
     $stmt2->execute();
 
     header("Location: admin_inventory.php");
@@ -208,6 +248,78 @@ if (isset($_POST['checkout'])) {
         $stmt2->bind_param("iiss", $item_id, $qty, $today, $ref);
         $stmt2->execute();
     }
+
+    header("Location: admin_inventory.php");
+    exit;
+}
+
+// Borrow a Device
+if (isset($_POST['borrow_device'])) {
+
+    $device_id = $_POST['device_id'];
+    $borrower = $_POST['borrower_name'];
+    $date = $_POST['date_borrowed'];
+
+    // 1. SAVE BORROW RECORD
+    $stmt = $conn->prepare("
+        INSERT INTO psa_device_borrow 
+        (device_id, borrower_name, date_borrowed)
+        VALUES (?, ?, ?)
+    ");
+    $stmt->bind_param("iss", $device_id, $borrower, $date);
+    $stmt->execute();
+
+    // 2. UPDATE DEVICE STATUS
+    $stmt2 = $conn->prepare("
+        UPDATE psa_devices 
+        SET status = 'Borrowed' 
+        WHERE device_id = ?
+    ");
+    $stmt2->bind_param("i", $device_id);
+    $stmt2->execute();
+
+    header("Location: admin_inventory.php");
+    exit;
+}
+
+// Return a Device
+if (isset($_POST['return_device'])) {
+
+    $device_id = $_POST['device_id'];
+    $date = $_POST['date_returned'];
+
+    // 1. GET BORROWER NAME (latest borrow record)
+    $getBorrower = $conn->prepare("
+        SELECT borrower_name 
+        FROM psa_device_borrow 
+        WHERE device_id = ?
+        ORDER BY borrow_id DESC
+        LIMIT 1
+    ");
+    $getBorrower->bind_param("i", $device_id);
+    $getBorrower->execute();
+    $result = $getBorrower->get_result();
+    $row = $result->fetch_assoc();
+
+    $borrower = $row['borrower_name'] ?? 'Unknown';
+
+    // 2. SAVE RETURN
+    $stmt = $conn->prepare("
+        INSERT INTO psa_device_return 
+        (device_id, borrower_name, date_returned)
+        VALUES (?, ?, ?)
+    ");
+    $stmt->bind_param("iss", $device_id, $borrower, $date);
+    $stmt->execute();
+
+    // 3. UPDATE STATUS BACK TO AVAILABLE
+    $stmt2 = $conn->prepare("
+        UPDATE psa_devices 
+        SET status = 'Available' 
+        WHERE device_id = ?
+    ");
+    $stmt2->bind_param("i", $device_id);
+    $stmt2->execute();
 
     header("Location: admin_inventory.php");
     exit;
@@ -291,9 +403,10 @@ if (isset($_POST['checkout'])) {
 
                 <!-- ================= ALL ITEMS ================= -->
                 <div class="tab-pane fade show active" id="all">
+                    <input type="text" class="form-control mb-2" placeholder="Search..." onkeyup="searchTable('allTable', this.value)">
                     <div class="card shadow-sm border-0 rounded-4">
                         <div class="card-body">
-                            <table class="table table-bordered text-center">
+                            <table id="allTable" class="table table-bordered text-center">
                                 <thead class="bg-light">
                                     <tr>
                                         <th>Name</th>
@@ -321,12 +434,17 @@ if (isset($_POST['checkout'])) {
                                     <?php endwhile; ?>
                                 </tbody>
                             </table>
+                            <div class="d-flex justify-content-between">
+                                <button class="btn btn-secondary btn-sm" onclick="prevPage('allTable')">Previous</button>
+                                <button class="btn btn-secondary btn-sm" onclick="nextPage('allTable')">Next</button>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- ================= FORMS ================= -->
                 <div class="tab-pane fade" id="forms">
+                    <input type="text" class="form-control mb-2" placeholder="Search..." onkeyup="searchTable('formsTable', this.value)">
                     <div class="card shadow-sm border-0 rounded-4">
                         <div class="card-body">
                             <button class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#addFormModal">
@@ -335,7 +453,7 @@ if (isset($_POST['checkout'])) {
                             <button class="btn btn-dark mb-3" data-bs-toggle="modal" data-bs-target="#posModal">
                                 <i class="bi bi-cart"></i> Open POS
                             </button>
-                            <table class="table table-bordered text-center">
+                            <table id="formsTable" class="table table-bordered text-center">
                                 <thead class="bg-light">
                                     <tr>
                                         <th>Form Name</th>
@@ -355,19 +473,32 @@ if (isset($_POST['checkout'])) {
                                     <?php endwhile; ?>
                                 </tbody>
                             </table>
+                            <div class="d-flex justify-content-between">
+                                <button class="btn btn-secondary btn-sm" onclick="prevPage('formsTable')">Previous</button>
+                                <button class="btn btn-secondary btn-sm" onclick="nextPage('formsTable')">Next</button>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- ================= DEVICES ================= -->
                 <div class="tab-pane fade" id="devices">
+                    <input type="text" class="form-control mb-2" placeholder="Search..." onkeyup="searchTable('devicesTable', this.value)">
                     <div class="card shadow-sm border-0 rounded-4">
                         <div class="card-body">
                             <button class="btn btn-success mb-3" data-bs-toggle="modal"
                                 data-bs-target="#addDeviceModal">
                                 <i class="bi bi-plus-circle"></i> Add Device
                             </button>
-                            <table class="table table-bordered text-center">
+
+                            <button class="btn btn-dark mb-3" data-bs-toggle="modal" data-bs-target="#borrowDeviceModal">
+                                <i class="bi bi-arrow-right-circle"></i> Borrow Device
+                            </button>
+
+                            <button class="btn btn-secondary mb-3" data-bs-toggle="modal" data-bs-target="#returnDeviceModal">
+                                <i class="bi bi-arrow-return-left"></i> Return Device
+                            </button>
+                            <table id="devicesTable" class="table table-bordered text-center">
                                 <thead class="bg-light">
                                     <tr>
                                         <th>Name</th>
@@ -389,18 +520,23 @@ if (isset($_POST['checkout'])) {
                                     <?php endwhile; ?>
                                 </tbody>
                             </table>
+                            <div class="d-flex justify-content-between">
+                                <button class="btn btn-secondary btn-sm" onclick="prevPage('devicesTable')">Previous</button>
+                                <button class="btn btn-secondary btn-sm" onclick="nextPage('devicesTable')">Next</button>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- ================= ASSETS ================= -->
                 <div class="tab-pane fade" id="assets">
+                    <input type="text" class="form-control mb-2" placeholder="Search..." onkeyup="searchTable('assetsTable', this.value)">
                     <div class="card shadow-sm border-0 rounded-4">
                         <div class="card-body">
                             <button class="btn btn-warning mb-3" data-bs-toggle="modal" data-bs-target="#addAssetModal">
                                 <i class="bi bi-plus-circle"></i> Add Asset
                             </button>
-                            <table class="table table-bordered text-center">
+                            <table id="assetsTable" class="table table-bordered text-center">
                                 <thead class="bg-light">
                                     <tr>
                                         <th>Name</th>
@@ -422,6 +558,10 @@ if (isset($_POST['checkout'])) {
                                     <?php endwhile; ?>
                                 </tbody>
                             </table>
+                            <div class="d-flex justify-content-between">
+                                <button class="btn btn-secondary btn-sm" onclick="prevPage('assetsTable')">Previous</button>
+                                <button class="btn btn-secondary btn-sm" onclick="nextPage('assetsTable')">Next</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -445,72 +585,6 @@ if (isset($_POST['checkout'])) {
         });
     </script>
 
-    <!-- <script>
-        let cart = [];
-
-        function addToCart() {
-            let select = document.getElementById("itemSelect");
-            let qty = document.getElementById("qty").value;
-
-            let option = select.options[select.selectedIndex];
-
-            if (!option.value || qty <= 0) {
-                alert("Select item and valid qty");
-                return;
-            }
-
-            let item = {
-                id: option.value,
-                name: option.dataset.name,
-                price: parseFloat(option.dataset.price),
-                qty: parseInt(qty)
-            };
-
-            // check if already in cart
-            let existing = cart.find(i => i.id === item.id);
-            if (existing) {
-                existing.qty += item.qty;
-            } else {
-                cart.push(item);
-            }
-
-            renderCart();
-        }
-
-        function renderCart() {
-            let table = document.getElementById("cartTable");
-            let total = 0;
-
-            table.innerHTML = "";
-
-            cart.forEach((item, index) => {
-                let subtotal = item.price * item.qty;
-                total += subtotal;
-
-                table.innerHTML += `
-            <tr>
-                <td>${item.name}</td>
-                <td>₱${item.price}</td>
-                <td>${item.qty}</td>
-                <td>₱${subtotal.toFixed(2)}</td>
-                <td>
-                    <button type="button" class="btn btn-danger btn-sm" onclick="removeItem(${index})">X</button>
-                </td>
-            </tr>
-        `;
-            });
-
-            document.getElementById("grandTotal").innerText = total.toFixed(2);
-
-            // store cart as JSON
-            document.getElementById("cartData").value = JSON.stringify(cart);
-        }
-
-        function removeItem(index) {
-            cart.splice(index, 1);
-            renderCart();
-        }
-    </script> -->
     <script>
         let cart = [];
 
@@ -553,15 +627,15 @@ if (isset($_POST['checkout'])) {
                 total += subtotal;
 
                 table.innerHTML += `
-            <tr>
-                <td>${item.name}</td>
-                <td>₱${item.price}</td>
-                <td>${item.qty}</td>
-                <td>₱${subtotal.toFixed(2)}</td>
-                <td>
-                    <button type="button" class="btn btn-danger btn-sm" onclick="removeItem(${index})">X</button>
-                </td>
-            </tr>
+        <tr>
+            <td>${item.name}</td>
+            <td>₱${item.price}</td>
+            <td>${item.qty}</td>
+            <td>₱${subtotal.toFixed(2)}</td>
+            <td>
+                <button type="button" class="btn btn-danger btn-sm" onclick="removeItem(${index})">X</button>
+            </td>
+        </tr>
         `;
             });
 
@@ -569,49 +643,94 @@ if (isset($_POST['checkout'])) {
 
             // store cart JSON
             document.getElementById("cartData").value = JSON.stringify(cart);
-
-            computeChange(); // 🔥 recompute when cart updates
         }
 
         function removeItem(index) {
             cart.splice(index, 1);
             renderCart();
         }
+    </script>
 
-        function computeChange() {
-            let total = parseFloat(document.getElementById("grandTotal").innerText) || 0;
-            let cash = parseFloat(document.getElementById("cashInput").value) || 0;
+    <!-- for auto display -->
+    <script>
+        document.getElementById("deviceSelect").addEventListener("change", function() {
+            let selected = this.options[this.selectedIndex];
 
-            let change = cash - total;
+            let serial = selected.getAttribute("data-serial") || "";
 
-            if (cash === 0) {
-                document.getElementById("changeField").value = "";
-                return;
-            }
-
-            if (change < 0) {
-                document.getElementById("changeField").value = "Insufficient";
-            } else {
-                document.getElementById("changeField").value = "₱ " + change.toFixed(2);
-            }
-        }
-
-        // 🔥 trigger when typing cash
-        document.getElementById("cashInput").addEventListener("input", computeChange);
+            document.getElementById("serialField").value = serial;
+        });
     </script>
 
     <script>
-        function validatePayment() {
-            let total = parseFloat(document.getElementById("grandTotal").innerText) || 0;
-            let cash = parseFloat(document.getElementById("cashInput").value) || 0;
+        document.getElementById("returnDeviceSelect").addEventListener("change", function() {
 
-            if (cash < total) {
-                alert("Kulangan ang bayad!");
-                return false;
-            }
+            let selected = this.options[this.selectedIndex];
 
-            return true;
+            let serial = selected.getAttribute("data-serial") || "";
+            let borrower = selected.getAttribute("data-borrower") || "";
+
+            document.getElementById("returnSerialField").value = serial;
+            document.getElementById("returnBorrowerField").value = borrower;
+        });
+    </script>
+
+    <!-- search and pagination -->
+    <script>
+        let currentPage = {};
+        let rowsPerPage = 5;
+
+        function getRows(tableId) {
+            let table = document.getElementById(tableId);
+            return table.querySelectorAll("tbody tr");
         }
+
+        function showPage(tableId) {
+            let rows = getRows(tableId);
+            if (!currentPage[tableId]) currentPage[tableId] = 1;
+
+            let start = (currentPage[tableId] - 1) * rowsPerPage;
+            let end = start + rowsPerPage;
+
+            rows.forEach((row, index) => {
+                row.style.display = (index >= start && index < end) ? "" : "none";
+            });
+        }
+
+        function nextPage(tableId) {
+            let rows = getRows(tableId);
+            let maxPage = Math.ceil(rows.length / rowsPerPage);
+
+            if (currentPage[tableId] < maxPage) {
+                currentPage[tableId]++;
+                showPage(tableId);
+            }
+        }
+
+        function prevPage(tableId) {
+            if (currentPage[tableId] > 1) {
+                currentPage[tableId]--;
+                showPage(tableId);
+            }
+        }
+
+        function searchTable(tableId, query) {
+            let rows = getRows(tableId);
+            query = query.toLowerCase();
+
+            rows.forEach(row => {
+                let text = row.innerText.toLowerCase();
+                row.style.display = text.includes(query) ? "" : "none";
+            });
+        }
+
+        // INIT all tables
+        window.onload = function() {
+            ["allTable", "formsTable", "devicesTable", "assetsTable"].forEach(id => {
+                currentPage[id] = 1;
+                showPage(id);
+            });
+        };
     </script>
 </body>
 

@@ -1,4 +1,3 @@
-admin_dashboard.php
 <?php
 session_start();
 require '../connectiondb.php';
