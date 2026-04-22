@@ -15,9 +15,6 @@
                 <input type="text" name="bundle_size" class="form-control mb-2" placeholder="Bundle Size">
                 <input type="number" step="0.01" name="price_per_bundle" class="form-control mb-2"
                     placeholder="Bundle Price">
-                <input type="number" step="0.01" name="price_per_piece" class="form-control mb-2"
-                    placeholder="Piece Price">
-                <input type="number" name="quantity" class="form-control mb-2" placeholder="Bundle Quantity">
                 <input type="text" name="custodian" class="form-control mb-2" placeholder="Custodian / Accountable Person" required>
 
                 <select name="status" class="form-control mb-2">
@@ -28,6 +25,61 @@
 
             <div class="modal-footer">
                 <button class="btn btn-primary" name="add_form">Save</button>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<!-- View Form details -->
+<div class="modal fade" id="viewFormModal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5>Form Details</h5>
+            </div>
+
+            <div class="modal-body">
+                <p><strong>Name:</strong> <span id="v_name"></span></p>
+                <p><strong>Bundle Size:</strong> <span id="v_bundle"></span></p>
+                <p><strong>Bundle Price:</strong> ₱<span id="v_bprice"></span></p>
+                <p><strong>Custodian:</strong> <span id="v_custodian"></span></p>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- update form details -->
+<div class="modal fade" id="editFormModal">
+    <div class="modal-dialog">
+        <form method="POST" class="modal-content">
+
+            <div class="modal-header">
+                <h5>Edit Form</h5>
+            </div>
+
+            <div class="modal-body">
+
+                <input type="hidden" name="form_id" id="ef_id">
+
+                <input type="text" name="item_name" id="ef_name" class="form-control mb-2" placeholder="Name">
+
+                <input type="text" name="bundle_size" id="ef_bundle" class="form-control mb-2">
+
+                <input type="number" name="price_per_bundle" id="ef_bprice" class="form-control mb-2">
+
+                <input type="text" name="custodian" id="ef_custodian" class="form-control mb-2">
+
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-success" name="update_form">Update</button>
             </div>
 
         </form>
@@ -52,15 +104,21 @@
                             <option value="">Select Form</option>
                             <?php
                             $formList = $conn->query("
-                                SELECT i.item_id, i.item_name, f.price_per_piece
-                                FROM psa_forms f
-                                JOIN inventory_items i ON i.item_id = f.item_id
-                            ");
+    SELECT 
+        i.item_id, 
+        i.item_name, 
+        f.price_per_bundle, 
+        f.bundle_size
+    FROM psa_forms f
+    JOIN inventory_items i ON i.item_id = f.item_id
+");
                             while ($f = $formList->fetch_assoc()):
                             ?>
-                                <option value="<?= $f['item_id'] ?>" data-name="<?= $f['item_name'] ?>"
-                                    data-price="<?= $f['price_per_piece'] ?>">
-                                    <?= $f['item_name'] ?> - ₱<?= $f['price_per_piece'] ?>
+                                <option value="<?= $f['item_id'] ?>"
+                                    data-name="<?= $f['item_name'] ?>"
+                                    data-price="<?= $f['price_per_bundle'] ?>">
+
+                                    <?= $f['item_name'] ?> - ₱<?= $f['price_per_bundle'] ?>
                                 </option>
                             <?php endwhile; ?>
                         </select>
@@ -136,6 +194,82 @@
 
             <div class="modal-footer">
                 <button class="btn btn-success" name="add_device">Save</button>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<!-- view device details -->
+<div class="modal fade" id="viewDeviceModal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5>Device Details</h5>
+            </div>
+
+            <div class="modal-body">
+                <p><strong>Name:</strong> <span id="vd_name"></span></p>
+                <p><strong>Inventory Tag:</strong> <span id="vd_tag"></span></p>
+                <p><strong>Property No:</strong> <span id="vd_property"></span></p>
+                <p><strong>Custodian:</strong> <span id="vd_custodian"></span></p>
+                <p><strong>Brand/Model:</strong> <span id="vd_brand"></span></p>
+                <p><strong>Serial No:</strong> <span id="vd_serial"></span></p>
+                <p><strong>Date Acquired:</strong> <span id="vd_date"></span></p>
+                <p><strong>Acquisition Cost:</strong> ₱<span id="vd_cost"></span></p>
+                <p><strong>Location:</strong> <span id="vd_location"></span></p>
+                <p><strong>Status:</strong> <span id="vd_status"></span></p>
+                <p><strong>Remark:</strong> <span id="vd_remark"></span></p>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- update device details -->
+<div class="modal fade" id="editDeviceModal">
+    <div class="modal-dialog">
+        <form method="POST" class="modal-content">
+
+            <div class="modal-header">
+                <h5>Edit Device</h5>
+            </div>
+
+            <div class="modal-body">
+
+                <input type="hidden" name="device_id" id="ed_id">
+
+                <input type="text" name="item_name" id="ed_name" class="form-control mb-2" placeholder="Name">
+
+                <input type="text" name="inventory_tag" id="ed_tag" class="form-control mb-2">
+
+                <input type="text" name="property_no" id="ed_property" class="form-control mb-2">
+
+                <input type="text" name="custodian" id="ed_custodian" class="form-control mb-2">
+
+                <input type="text" name="brand_model" id="ed_brand" class="form-control mb-2">
+
+                <input type="text" name="serial_no" id="ed_serial" class="form-control mb-2">
+
+                <input type="date" name="date_acquired" id="ed_date" class="form-control mb-2">
+
+                <input type="number" name="acquisition_cost" id="ed_cost" class="form-control mb-2">
+
+                <input type="text" name="location" id="ed_location" class="form-control mb-2">
+
+                <input type="text" name="status" id="ed_status" class="form-control mb-2">
+
+                <textarea name="remark" id="ed_remark" class="form-control mb-2"></textarea>
+
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-success" name="update_device">Update</button>
             </div>
 
         </form>
@@ -281,6 +415,73 @@
 
             <div class="modal-footer">
                 <button class="btn btn-warning" name="add_asset">Save</button>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<!-- view asset details -->
+<div class="modal fade" id="viewAssetModal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5>Asset Details</h5>
+            </div>
+
+            <div class="modal-body">
+                <p><strong>Name:</strong> <span id="va_name"></span></p>
+                <p><strong>Property No:</strong> <span id="va_property"></span></p>
+                <p><strong>Brand:</strong> <span id="va_brand"></span></p>
+                <p><strong>Condition:</strong> <span id="va_condition"></span></p>
+                <p><strong>Location:</strong> <span id="va_location"></span></p>
+                <p><strong>Date Acquired:</strong> <span id="va_date"></span></p>
+                <p><strong>Acquisition Cost:</strong> ₱<span id="va_cost"></span></p>
+                <p><strong>Custodian:</strong> <span id="va_custodian"></span></p>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- update asset details -->
+<div class="modal fade" id="editAssetModal">
+    <div class="modal-dialog">
+        <form method="POST" class="modal-content">
+
+            <div class="modal-header">
+                <h5>Edit Asset</h5>
+            </div>
+
+            <div class="modal-body">
+
+                <input type="hidden" name="asset_id" id="ea_id">
+
+                <input type="text" name="item_name" id="ea_name" class="form-control mb-2">
+
+                <input type="text" name="property_no" id="ea_property" class="form-control mb-2">
+
+                <input type="text" name="brand" id="ea_brand" class="form-control mb-2">
+
+                <input type="text" name="condition_status" id="ea_condition" class="form-control mb-2">
+
+                <input type="text" name="location" id="ea_location" class="form-control mb-2">
+
+                <input type="date" name="acquisition_date" id="ea_date" class="form-control mb-2">
+
+                <input type="number" name="acquisition_cost" id="ea_cost" class="form-control mb-2">
+
+                <input type="text" name="custodian" id="ea_custodian" class="form-control mb-2">
+
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-success" name="update_asset">Update</button>
             </div>
 
         </form>

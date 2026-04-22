@@ -16,24 +16,50 @@ $items = $conn->query("SELECT * FROM inventory_items ORDER BY created_at DESC");
 
 // FORMS
 $forms = $conn->query("
-        SELECT i.item_name, f.bundle_size, f.price_per_bundle, f.price_per_piece
-        FROM psa_forms f
-        JOIN inventory_items i ON i.item_id = f.item_id
-    ");
+    SELECT 
+        f.form_id,
+        i.item_name, 
+        f.bundle_size, 
+        f.price_per_bundle, 
+        f.custodian
+    FROM psa_forms f
+    JOIN inventory_items i ON i.item_id = f.item_id
+");
 
 // DEVICES
 $devices = $conn->query("
-        SELECT i.item_name, d.property_no, d.serial_no, d.status, d.location
+        SELECT 
+            i.item_name,
+            d.device_id,
+            d.inventory_tag,
+            d.property_no,
+            d.custodian,
+            d.brand_model,
+            d.serial_no,
+            d.date_acquired,
+            d.acquisition_cost,
+            d.location,
+            d.status,
+            d.remark
         FROM psa_devices d
         JOIN inventory_items i ON i.item_id = d.item_id
     ");
 
 // ASSETS
 $assets = $conn->query("
-        SELECT i.item_name, a.property_no, a.brand, a.condition_status, a.location
-        FROM psa_assets a
-        JOIN inventory_items i ON i.item_id = a.item_id
-    ");
+    SELECT 
+        a.asset_id,
+        i.item_name,
+        a.property_no,
+        a.brand,
+        a.condition_status,
+        a.location,
+        a.acquisition_date,
+        a.acquisition_cost,
+        a.custodian
+    FROM psa_assets a
+    JOIN inventory_items i ON i.item_id = a.item_id
+");
 
 /* =========================
 INSERT LOGIC
@@ -43,31 +69,29 @@ if (isset($_POST['add_form'])) {
 
     $name = $_POST['item_name'];
     $desc = $_POST['description'];
-    $qty = $_POST['quantity'];
     $status = $_POST['status'];
 
     $bundle = $_POST['bundle_size'];
     $bundle_price = $_POST['price_per_bundle'];
-    $piece_price = $_POST['price_per_piece'];
     $custodian = $_POST['custodian'];
 
     // FULL insert
     $stmt = $conn->prepare("
-            INSERT INTO inventory_items 
-            (item_name, category, description, price, quantity, status) 
-            VALUES (?, 'Form', ?, ?, ?, ?)
-        ");
-    $stmt->bind_param("ssdis", $name, $desc, $piece_price, $qty, $status);
+    INSERT INTO inventory_items 
+    (item_name, category, description, price, quantity, status) 
+    VALUES (?, 'Form', ?, ?, ?, ?)
+");
+    $stmt->bind_param("ssdis", $name, $desc, $bundle_price, $qty, $status);
     $stmt->execute();
 
     $item_id = $stmt->insert_id;
 
     $stmt2 = $conn->prepare("
     INSERT INTO psa_forms 
-    (item_id, bundle_size, price_per_bundle, price_per_piece, custodian) 
+(item_id, bundle_size, price_per_bundle, custodian)
     VALUES (?, ?, ?, ?, ?)
 ");
-    $stmt2->bind_param("iidds", $item_id, $bundle, $bundle_price, $piece_price, $custodian);
+    $stmt2->bind_param("isds", $item_id, $bundle, $bundle_price, $custodian);
     $stmt2->execute();
 
     header("Location: admin_inventory.php");
@@ -324,6 +348,170 @@ if (isset($_POST['return_device'])) {
     header("Location: admin_inventory.php");
     exit;
 }
+
+// UPDATE FORM
+if (isset($_POST['update_form'])) {
+
+    // VALIDATE
+    if (empty($_POST['form_id'])) {
+        die("Error: form_id is missing");
+    }
+
+    $form_id = intval($_POST['form_id']);
+    $name = trim($_POST['item_name']);
+    $bundle = trim($_POST['bundle_size']);
+    $bprice = floatval($_POST['price_per_bundle']);
+    $custodian = trim($_POST['custodian']);
+
+    // =========================
+    // UPDATE inventory_items (name)
+    // =========================
+    $stmt = $conn->prepare("
+        UPDATE inventory_items i
+        INNER JOIN psa_forms f ON i.item_id = f.item_id
+        SET i.item_name = ?
+        WHERE f.form_id = ?
+    ");
+
+    if (!$stmt) {
+        die("Prepare failed: " . $conn->error);
+    }
+
+    $stmt->bind_param("si", $name, $form_id);
+    $stmt->execute();
+
+    // =========================
+    // UPDATE psa_forms
+    // =========================
+    $stmt2 = $conn->prepare("
+        UPDATE psa_forms
+        SET bundle_size = ?, 
+            price_per_bundle = ?,  
+            custodian = ?
+        WHERE form_id = ?
+    ");
+
+    if (!$stmt2) {
+        die("Prepare failed: " . $conn->error);
+    }
+
+    // FIXED: correct parameters (NO $pprice, correct types)
+    $stmt2->bind_param("sdsi", $bundle, $bprice, $custodian, $form_id);
+    $stmt2->execute();
+
+    // OPTIONAL CHECK
+    if ($stmt2->affected_rows > 0) {
+        // success
+    }
+
+    header("Location: admin_inventory.php");
+    exit;
+}
+
+// UPDATE DEVICE
+if (isset($_POST['update_device'])) {
+
+    $device_id = $_POST['device_id'];
+    $name = $_POST['item_name'];
+
+    $tag = $_POST['inventory_tag'];
+    $property = $_POST['property_no'];
+    $custodian = $_POST['custodian'];
+    $brand = $_POST['brand_model'];
+    $serial = $_POST['serial_no'];
+    $date = $_POST['date_acquired'];
+    $cost = $_POST['acquisition_cost'];
+    $location = $_POST['location'];
+    $status = $_POST['status'];
+    $remark = $_POST['remark'];
+
+    // UPDATE inventory_items
+    $stmt = $conn->prepare("
+        UPDATE inventory_items i
+        JOIN psa_devices d ON i.item_id = d.item_id
+        SET i.item_name = ?
+        WHERE d.device_id = ?
+    ");
+    $stmt->bind_param("si", $name, $device_id);
+    $stmt->execute();
+
+    // UPDATE psa_devices
+    $stmt2 = $conn->prepare("
+        UPDATE psa_devices
+        SET inventory_tag=?, property_no=?, custodian=?, brand_model=?, serial_no=?, 
+            date_acquired=?, acquisition_cost=?, location=?, status=?, remark=?
+        WHERE device_id=?
+    ");
+
+    $stmt2->bind_param(
+        "ssssssdsssi",
+        $tag,
+        $property,
+        $custodian,
+        $brand,
+        $serial,
+        $date,
+        $cost,
+        $location,
+        $status,
+        $remark,
+        $device_id
+    );
+
+    $stmt2->execute();
+
+    header("Location: admin_inventory.php");
+    exit;
+}
+
+// UPDATE ASSETS
+if (isset($_POST['update_asset'])) {
+
+    $asset_id = $_POST['asset_id'];
+    $name = $_POST['item_name'];
+
+    $property = $_POST['property_no'];
+    $brand = $_POST['brand'];
+    $condition = $_POST['condition_status'];
+    $location = $_POST['location'];
+    $date = $_POST['acquisition_date'];
+    $cost = $_POST['acquisition_cost'];
+    $custodian = $_POST['custodian'];
+
+    // update inventory_items name
+    $stmt = $conn->prepare("
+        UPDATE inventory_items i
+        JOIN psa_assets a ON i.item_id = a.item_id
+        SET i.item_name = ?
+        WHERE a.asset_id = ?
+    ");
+    $stmt->bind_param("si", $name, $asset_id);
+    $stmt->execute();
+
+    // update psa_assets
+    $stmt2 = $conn->prepare("
+        UPDATE psa_assets
+        SET property_no=?, brand=?, condition_status=?, location=?, acquisition_date=?, acquisition_cost=?, custodian=?
+        WHERE asset_id=?
+    ");
+
+    $stmt2->bind_param(
+        "sssssdsi",
+        $property,
+        $brand,
+        $condition,
+        $location,
+        $date,
+        $cost,
+        $custodian,
+        $asset_id
+    );
+
+    $stmt2->execute();
+
+    header("Location: admin_inventory.php");
+    exit;
+}
 ?>
 
 <!DOCTYPE html>
@@ -459,7 +647,7 @@ if (isset($_POST['return_device'])) {
                                         <th>Form Name</th>
                                         <th>Bundle Size</th>
                                         <th>Bundle Price</th>
-                                        <th>Piece Price</th>
+                                        <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -468,7 +656,31 @@ if (isset($_POST['return_device'])) {
                                             <td><?= $row['item_name'] ?></td>
                                             <td><?= $row['bundle_size'] ?></td>
                                             <td><?= $row['price_per_bundle'] ?></td>
-                                            <td><?= $row['price_per_piece'] ?></td>
+                                            <td>
+                                                <button class="btn btn-info btn-sm"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#viewFormModal"
+                                                    data-name="<?= $row['item_name'] ?>"
+                                                    data-bundle="<?= $row['bundle_size'] ?>"
+                                                    data-bprice="<?= $row['price_per_bundle'] ?>"
+                                                    data-custodian="<?= $row['custodian'] ?>">
+                                                    <i class="bi bi-eye"></i> View
+                                                </button>
+
+                                                <!-- EDIT -->
+                                                <button class="btn btn-warning btn-sm"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#editFormModal"
+
+                                                    data-id="<?= $row['form_id'] ?>"
+                                                    data-name="<?= $row['item_name'] ?>"
+                                                    data-bundle="<?= $row['bundle_size'] ?>"
+                                                    data-bprice="<?= $row['price_per_bundle'] ?>"
+                                                    data-custodian="<?= $row['custodian'] ?>">
+
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                            </td>
                                         </tr>
                                     <?php endwhile; ?>
                                 </tbody>
@@ -506,6 +718,7 @@ if (isset($_POST['return_device'])) {
                                         <th>Serial</th>
                                         <th>Status</th>
                                         <th>Location</th>
+                                        <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -516,6 +729,46 @@ if (isset($_POST['return_device'])) {
                                             <td><?= $row['serial_no'] ?></td>
                                             <td><?= $row['status'] ?></td>
                                             <td><?= $row['location'] ?></td>
+                                            <td>
+                                                <button class="btn btn-info btn-sm"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#viewDeviceModal"
+
+                                                    data-name="<?= $row['item_name'] ?>"
+                                                    data-tag="<?= $row['inventory_tag'] ?>"
+                                                    data-property="<?= $row['property_no'] ?>"
+                                                    data-custodian="<?= $row['custodian'] ?>"
+                                                    data-brand="<?= $row['brand_model'] ?>"
+                                                    data-serial="<?= $row['serial_no'] ?>"
+                                                    data-date="<?= $row['date_acquired'] ?>"
+                                                    data-cost="<?= $row['acquisition_cost'] ?>"
+                                                    data-location="<?= $row['location'] ?>"
+                                                    data-status="<?= $row['status'] ?>"
+                                                    data-remark="<?= $row['remark'] ?>">
+
+                                                    <i class="bi bi-eye"></i> View
+                                                </button>
+
+                                                <!-- EDIT -->
+                                                <button class="btn btn-warning btn-sm"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#editDeviceModal"
+
+                                                    data-id="<?= $row['device_id'] ?>"
+                                                    data-name="<?= $row['item_name'] ?>"
+                                                    data-tag="<?= $row['inventory_tag'] ?>"
+                                                    data-property="<?= $row['property_no'] ?>"
+                                                    data-custodian="<?= $row['custodian'] ?>"
+                                                    data-brand="<?= $row['brand_model'] ?>"
+                                                    data-serial="<?= $row['serial_no'] ?>"
+                                                    data-date="<?= $row['date_acquired'] ?>"
+                                                    data-cost="<?= $row['acquisition_cost'] ?>"
+                                                    data-location="<?= $row['location'] ?>"
+                                                    data-status="<?= $row['status'] ?>"
+                                                    data-remark="<?= $row['remark'] ?>">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                            </td>
                                         </tr>
                                     <?php endwhile; ?>
                                 </tbody>
@@ -544,6 +797,7 @@ if (isset($_POST['return_device'])) {
                                         <th>Brand</th>
                                         <th>Condition</th>
                                         <th>Location</th>
+                                        <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -554,6 +808,41 @@ if (isset($_POST['return_device'])) {
                                             <td><?= $row['brand'] ?></td>
                                             <td><?= $row['condition_status'] ?></td>
                                             <td><?= $row['location'] ?></td>
+                                            <td>
+                                                <button class="btn btn-info btn-sm"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#viewAssetModal"
+
+                                                    data-name="<?= $row['item_name'] ?>"
+                                                    data-property="<?= $row['property_no'] ?>"
+                                                    data-brand="<?= $row['brand'] ?>"
+                                                    data-condition="<?= $row['condition_status'] ?>"
+                                                    data-location="<?= $row['location'] ?>"
+                                                    data-date="<?= $row['acquisition_date'] ?>"
+                                                    data-cost="<?= $row['acquisition_cost'] ?>"
+                                                    data-custodian="<?= $row['custodian'] ?>">
+
+                                                    <i class="bi bi-eye"></i> View
+                                                </button>
+
+                                                <!-- EDIT -->
+                                                <button class="btn btn-warning btn-sm"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#editAssetModal"
+
+                                                    data-id="<?= $row['asset_id'] ?>"
+                                                    data-name="<?= $row['item_name'] ?>"
+                                                    data-property="<?= $row['property_no'] ?>"
+                                                    data-brand="<?= $row['brand'] ?>"
+                                                    data-condition="<?= $row['condition_status'] ?>"
+                                                    data-location="<?= $row['location'] ?>"
+                                                    data-date="<?= $row['acquisition_date'] ?>"
+                                                    data-cost="<?= $row['acquisition_cost'] ?>"
+                                                    data-custodian="<?= $row['custodian'] ?>">
+
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                            </td>
                                         </tr>
                                     <?php endwhile; ?>
                                 </tbody>
@@ -574,6 +863,7 @@ if (isset($_POST['return_device'])) {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
+    <!-- sidebar/navbar -->
     <script>
         const sidebar = document.getElementById('sidebar');
         const toggleBtn = document.getElementById('sidebar-toggle');
@@ -585,73 +875,88 @@ if (isset($_POST['return_device'])) {
         });
     </script>
 
-    <script>
-        let cart = [];
+   <script>
+    let cart = [];
 
-        function addToCart() {
-            let select = document.getElementById("itemSelect");
-            let qty = document.getElementById("qty").value;
+    function addToCart() {
+        let select = document.getElementById("itemSelect");
+        let qty = parseInt(document.getElementById("qty").value);
 
-            let option = select.options[select.selectedIndex];
+        let option = select.options[select.selectedIndex];
 
-            if (!option.value || qty <= 0) {
-                alert("Select item and valid qty");
-                return;
-            }
-
-            let item = {
-                id: option.value,
-                name: option.dataset.name,
-                price: parseFloat(option.dataset.price),
-                qty: parseInt(qty)
-            };
-
-            let existing = cart.find(i => i.id === item.id);
-            if (existing) {
-                existing.qty += item.qty;
-            } else {
-                cart.push(item);
-            }
-
-            renderCart();
+        // VALIDATION
+        if (!option.value || !qty || qty <= 0) {
+            alert("Select item and valid quantity");
+            return;
         }
 
-        function renderCart() {
-            let table = document.getElementById("cartTable");
-            let total = 0;
+        let price = parseFloat(option.dataset.price || 0);
 
-            table.innerHTML = "";
-
-            cart.forEach((item, index) => {
-                let subtotal = item.price * item.qty;
-                total += subtotal;
-
-                table.innerHTML += `
-        <tr>
-            <td>${item.name}</td>
-            <td>₱${item.price}</td>
-            <td>${item.qty}</td>
-            <td>₱${subtotal.toFixed(2)}</td>
-            <td>
-                <button type="button" class="btn btn-danger btn-sm" onclick="removeItem(${index})">X</button>
-            </td>
-        </tr>
-        `;
-            });
-
-            document.getElementById("grandTotal").innerText = total.toFixed(2);
-
-            // store cart JSON
-            document.getElementById("cartData").value = JSON.stringify(cart);
+        if (isNaN(price)) {
+            alert("Invalid price detected for selected item");
+            return;
         }
 
-        function removeItem(index) {
-            cart.splice(index, 1);
-            renderCart();
-        }
-    </script>
+        let item = {
+            id: option.value,
+            name: option.dataset.name,
+            price: price,
+            qty: qty
+        };
 
-    <!-- for auto display -->
+        // CHECK EXISTING ITEM
+        let existing = cart.find(i => i.id === item.id);
+
+        if (existing) {
+            existing.qty += item.qty;
+        } else {
+            cart.push(item);
+        }
+
+        // reset inputs (optional but recommended)
+        document.getElementById("qty").value = "";
+        select.selectedIndex = 0;
+
+        renderCart();
+    }
+
+    function renderCart() {
+        let table = document.getElementById("cartTable");
+        let total = 0;
+
+        table.innerHTML = "";
+
+        cart.forEach((item, index) => {
+
+            let subtotal = item.price * item.qty;
+            total += subtotal;
+
+            table.innerHTML += `
+                <tr>
+                    <td>${item.name}</td>
+                    <td>₱${item.price.toFixed(2)}</td>
+                    <td>${item.qty}</td>
+                    <td>₱${subtotal.toFixed(2)}</td>
+                    <td>
+                        <button type="button" class="btn btn-danger btn-sm" onclick="removeItem(${index})">X</button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        document.getElementById("grandTotal").innerText = total.toFixed(2);
+
+        // sync hidden input
+        document.getElementById("cartData").value = JSON.stringify(cart);
+    }
+
+    function removeItem(index) {
+        cart.splice(index, 1);
+        renderCart();
+    }
+</script>
+
+    <!-- for auto display in borrow -->
     <script>
         document.getElementById("deviceSelect").addEventListener("change", function() {
             let selected = this.options[this.selectedIndex];
@@ -662,6 +967,7 @@ if (isset($_POST['return_device'])) {
         });
     </script>
 
+    <!-- return borrowed -->
     <script>
         document.getElementById("returnDeviceSelect").addEventListener("change", function() {
 
@@ -731,6 +1037,157 @@ if (isset($_POST['return_device'])) {
                 showPage(id);
             });
         };
+    </script>
+
+    <!-- View Form script -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+
+            const viewModal = document.getElementById('viewFormModal');
+
+            viewModal.addEventListener('show.bs.modal', function(event) {
+
+                let button = event.relatedTarget;
+
+                document.getElementById('v_name').innerText = button.getAttribute('data-name');
+                document.getElementById('v_bundle').innerText = button.getAttribute('data-bundle');
+                document.getElementById('v_bprice').innerText = button.getAttribute('data-bprice');
+                document.getElementById('v_pprice').innerText = button.getAttribute('data-pprice');
+                document.getElementById('v_custodian').innerText = button.getAttribute('data-custodian');
+
+            });
+
+        });
+    </script>
+
+    <!-- view device script -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+
+            const deviceModal = document.getElementById('viewDeviceModal');
+
+            if (deviceModal) {
+                deviceModal.addEventListener('show.bs.modal', function(event) {
+
+                    let button = event.relatedTarget;
+
+                    document.getElementById('vd_name').innerText = button.getAttribute('data-name');
+                    document.getElementById('vd_tag').innerText = button.getAttribute('data-tag');
+                    document.getElementById('vd_property').innerText = button.getAttribute('data-property');
+                    document.getElementById('vd_custodian').innerText = button.getAttribute('data-custodian');
+                    document.getElementById('vd_brand').innerText = button.getAttribute('data-brand');
+                    document.getElementById('vd_serial').innerText = button.getAttribute('data-serial');
+                    document.getElementById('vd_date').innerText = button.getAttribute('data-date');
+                    document.getElementById('vd_cost').innerText = button.getAttribute('data-cost');
+                    document.getElementById('vd_location').innerText = button.getAttribute('data-location');
+                    document.getElementById('vd_status').innerText = button.getAttribute('data-status');
+                    document.getElementById('vd_remark').innerText = button.getAttribute('data-remark');
+
+                });
+            }
+
+        });
+    </script>
+
+    <!-- view asset script -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+
+            const assetModal = document.getElementById('viewAssetModal');
+
+            if (assetModal) {
+                assetModal.addEventListener('show.bs.modal', function(event) {
+
+                    let button = event.relatedTarget;
+
+                    document.getElementById('va_name').innerText = button.getAttribute('data-name');
+                    document.getElementById('va_property').innerText = button.getAttribute('data-property');
+                    document.getElementById('va_brand').innerText = button.getAttribute('data-brand');
+                    document.getElementById('va_condition').innerText = button.getAttribute('data-condition');
+                    document.getElementById('va_location').innerText = button.getAttribute('data-location');
+                    document.getElementById('va_date').innerText = button.getAttribute('data-date');
+                    document.getElementById('va_cost').innerText = button.getAttribute('data-cost');
+                    document.getElementById('va_custodian').innerText = button.getAttribute('data-custodian');
+
+                });
+            }
+
+        });
+    </script>
+
+    <!-- update form -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+
+            const modal = document.getElementById('editFormModal');
+
+            modal.addEventListener('show.bs.modal', function(event) {
+
+                let btn = event.relatedTarget;
+
+                document.getElementById('ef_id').value = btn.getAttribute('data-id');
+                document.getElementById('ef_name').value = btn.getAttribute('data-name');
+                document.getElementById('ef_bundle').value = btn.getAttribute('data-bundle');
+                document.getElementById('ef_bprice').value = btn.getAttribute('data-bprice');
+                document.getElementById('ef_pprice').value = btn.getAttribute('data-pprice');
+                document.getElementById('ef_custodian').value = btn.getAttribute('data-custodian');
+
+            });
+
+        });
+    </script>
+
+    <!-- update device -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+
+            const modal = document.getElementById('editDeviceModal');
+
+            modal.addEventListener('show.bs.modal', function(event) {
+
+                let btn = event.relatedTarget;
+
+                document.getElementById('ed_id').value = btn.getAttribute('data-id');
+                document.getElementById('ed_name').value = btn.getAttribute('data-name');
+                document.getElementById('ed_tag').value = btn.getAttribute('data-tag');
+                document.getElementById('ed_property').value = btn.getAttribute('data-property');
+                document.getElementById('ed_custodian').value = btn.getAttribute('data-custodian');
+                document.getElementById('ed_brand').value = btn.getAttribute('data-brand');
+                document.getElementById('ed_serial').value = btn.getAttribute('data-serial');
+                document.getElementById('ed_date').value = btn.getAttribute('data-date');
+                document.getElementById('ed_cost').value = btn.getAttribute('data-cost');
+                document.getElementById('ed_location').value = btn.getAttribute('data-location');
+                document.getElementById('ed_status').value = btn.getAttribute('data-status');
+                document.getElementById('ed_remark').value = btn.getAttribute('data-remark');
+
+            });
+
+        });
+    </script>
+
+    <!-- update assets -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+
+            const modal = document.getElementById('editAssetModal');
+
+            modal.addEventListener('show.bs.modal', function(event) {
+
+                let btn = event.relatedTarget;
+
+                document.getElementById('ea_id').value = btn.getAttribute('data-id');
+                document.getElementById('ea_name').value = btn.getAttribute('data-name');
+                document.getElementById('ea_property').value = btn.getAttribute('data-property');
+                document.getElementById('ea_brand').value = btn.getAttribute('data-brand');
+                document.getElementById('ea_condition').value = btn.getAttribute('data-condition');
+                document.getElementById('ea_location').value = btn.getAttribute('data-location');
+                document.getElementById('ea_date').value = btn.getAttribute('data-date');
+                document.getElementById('ea_cost').value = btn.getAttribute('data-cost');
+                document.getElementById('ea_custodian').value = btn.getAttribute('data-custodian');
+
+            });
+
+        });
     </script>
 </body>
 
