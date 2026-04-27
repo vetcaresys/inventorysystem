@@ -1,0 +1,5 @@
+username: formsadmin
+password: 123456
+
+username: inventoryadmin
+password: 123456
