@@ -145,6 +145,10 @@ LIMIT 8
                 <i class="bi bi-speedometer2"></i> Dashboard
             </a>
 
+            <a href="employees.php" class="nav-link">
+                <i class="bi bi-people"></i> Employees
+            </a>
+
             <a href="inventory_items.php" class="nav-link">
                 <i class="bi bi-box-seam"></i> Inventory Items
             </a>
@@ -157,12 +161,12 @@ LIMIT 8
                 <i class="bi bi-journal-arrow-down"></i> Return Records
             </a>
 
-            <a href="employees.php" class="nav-link">
-                <i class="bi bi-people"></i> Employees
-            </a>
-
             <a href="inventory_reports.php" class="nav-link active">
                 <i class="bi bi-bar-chart-line"></i> Reports
+            </a>
+
+            <a href="backup_restore.php" class="nav-link">
+                <i class="bi bi-database-fill-gear"></i> Backup & Restore
             </a>
 
             <hr>
@@ -178,6 +182,23 @@ LIMIT 8
     <div id="main">
 
         <h3 class="fw-bold mb-4">Inventory Reports</h3>
+
+        <div class="mb-4">
+            <a href="inventory_report_generator.php" class="btn btn-success">
+                <i class="bi bi-file-earmark-excel"></i>
+                Item Generate Report
+            </a>
+
+            <a href="borrow_report_generator.php" class="btn btn-primary">
+                <i class="bi bi-file-earmark-spreadsheet"></i>
+                Borrow Generate Report
+            </a>
+
+            <a href="return_report_generator.php" class="btn btn-warning">
+                <i class="bi bi-arrow-return-left"></i>
+                Return Generate Report
+            </a>
+        </div>
 
         <!-- SUMMARY -->
         <div class="row g-4 mb-4">
@@ -302,6 +323,13 @@ LIMIT 8
             </table>
 
         </div>
+
+        <footer class="text-center mt-5 py-3 border-top text-muted">
+            <small>
+                © <?php echo date("Y"); ?> PSA Inventory Management System. All Rights Reserved. <br>
+                Developed for internal use only.
+            </small>
+        </footer>
 
     </div>
 

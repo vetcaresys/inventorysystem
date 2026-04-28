@@ -145,6 +145,10 @@ LIMIT 5
                 <i class="bi bi-speedometer2"></i> Dashboard
             </a>
 
+            <a href="employees.php" class="nav-link">
+                <i class="bi bi-people"></i> Employees
+            </a>
+
             <a href="inventory_items.php" class="nav-link">
                 <i class="bi bi-box-seam"></i> Inventory Items
             </a>
@@ -157,13 +161,14 @@ LIMIT 5
                 <i class="bi bi-journal-arrow-down"></i> Return Records
             </a>
 
-            <a href="employees.php" class="nav-link">
-                <i class="bi bi-people"></i> Employees
-            </a>
-
             <a href="inventory_reports.php" class="nav-link">
                 <i class="bi bi-bar-chart-line"></i> Reports
             </a>
+
+            <a href="backup_restore.php" class="nav-link">
+                <i class="bi bi-database-fill-gear"></i> Backup & Restore
+            </a>
+
 
             <hr>
 
@@ -285,6 +290,13 @@ LIMIT 5
 
             </div>
         </div>
+
+        <footer class="text-center mt-5 py-3 border-top text-muted">
+            <small>
+                © <?php echo date("Y"); ?> PSA Inventory Management System. All Rights Reserved. <br>
+                Developed for internal use only.
+            </small>
+        </footer>
 
     </div>
 
