@@ -5,42 +5,42 @@ require '../vendor/autoload.php';
 
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
-if(
- !isset($_SESSION['role']) ||
- $_SESSION['role']!='inventory_admin'
-){
-header("Location: ../login.php");
-exit;
+if (
+    !isset($_SESSION['role']) ||
+    $_SESSION['role'] != 'inventory_admin'
+) {
+    header("Location: ../login.php");
+    exit;
 }
 
 
-if(isset($_POST['import'])){
+if (isset($_POST['import'])) {
 
-$file =
-$_FILES['excel_file']['tmp_name'];
+    $file =
+        $_FILES['excel_file']['tmp_name'];
 
-$spreadsheet =
-IOFactory::load($file);
+    $spreadsheet =
+        IOFactory::load($file);
 
-/*
+    /*
 Sheet 1 = Inventory
 */
-$sheet=
-$spreadsheet->getSheet(0);
+    $sheet =
+        $spreadsheet->getSheet(0);
 
-$data=
-$sheet->toArray();
+    $data =
+        $sheet->toArray();
 
-$count=0;
+    $count = 0;
 
-/* skip header row */
-for($i=1;$i<count($data);$i++){
+    /* skip header row */
+    for ($i = 1; $i < count($data); $i++) {
 
-if(empty($data[$i][3])){
-continue;
-}
+        if (empty($data[$i][3])) {
+            continue;
+        }
 
-/*
+        /*
 Columns:
 0 item_id
 1 property_no
@@ -53,22 +53,22 @@ Columns:
 8 location
 */
 
-/* optional duplicate check */
-$desc=
-$conn->real_escape_string($data[$i][3]);
+        /* optional duplicate check */
+        $desc =
+            $conn->real_escape_string($data[$i][3]);
 
-$check=
-$conn->query("
+        $check =
+            $conn->query("
 SELECT item_id
 FROM equipment_inventory
 WHERE description='$desc'
 ");
 
-if($check->num_rows>0){
-continue;
-}
+        if ($check->num_rows > 0) {
+            continue;
+        }
 
-$sql="
+        $sql = "
 INSERT INTO equipment_inventory(
 property_no,
 inventory_tag_no,
@@ -80,101 +80,116 @@ item_condition,
 location
 )
 VALUES(
-'".$data[$i][1]."',
-'".$data[$i][2]."',
-'".$data[$i][3]."',
-'".$data[$i][4]."',
-'".$data[$i][5]."',
-'".$data[$i][6]."',
-'".$data[$i][7]."',
-'".$data[$i][8]."'
+'" . $data[$i][1] . "',
+'" . $data[$i][2] . "',
+'" . $data[$i][3] . "',
+'" . $data[$i][4] . "',
+'" . $data[$i][5] . "',
+'" . $data[$i][6] . "',
+'" . $data[$i][7] . "',
+'" . $data[$i][8] . "'
 )
 ";
 
-$conn->query($sql);
+        $conn->query($sql);
 
-$count++;
+        $count++;
+    }
 
-}
-
-echo "
+    echo "
 <script>
 alert('$count inventory records imported successfully');
 window.location='inventory_items.php';
 </script>
 ";
-exit;
-
+    exit;
 }
 ?>
 
 
 <!DOCTYPE html>
 <html>
+
 <head>
-<title>Import Inventory Excel</title>
+    <title>Import Inventory Excel</title>
 
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-<style>
-body{
-background:#eef3fb;
-font-family:Arial;
-}
+    <style>
+        body {
+            background: #eef3fb;
+            font-family: Arial;
+        }
 
-.box{
-max-width:700px;
-margin:60px auto;
-background:#fff;
-padding:40px;
-border-radius:20px;
-box-shadow:0 8px 20px rgba(0,0,0,.05);
-}
-</style>
+        .box {
+            max-width: 700px;
+            margin: 60px auto;
+            background: #fff;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, .05);
+        }
+    </style>
 
 </head>
+
 <body>
 
-<div class="box">
+    <div class="box">
 
-<h3 class="fw-bold mb-4">
-Import Inventory Backup
-</h3>
+        <h3 class="fw-bold mb-4">
+            Import Inventory Backup
+        </h3>
 
-<form
-method="POST"
-enctype="multipart/form-data"
->
+        <form id="importForm" method="POST" enctype="multipart/form-data">
 
-<label class="fw-bold mb-2">
-Upload Excel Backup
-</label>
+            <label class="fw-bold mb-2">
+                Upload Excel Backup
+            </label>
 
-<input
-type="file"
-name="excel_file"
-accept=".xlsx,.xls"
-class="form-control mb-4"
-required
->
+            <input
+                type="file"
+                name="excel_file"
+                accept=".xlsx,.xls"
+                class="form-control mb-4"
+                required>
 
-<button
-class="btn btn-primary"
-name="import"
->
-Import Excel
-</button>
+            <button
+                class="btn btn-primary"
+                name="import">
+                Import Excel
+            </button>
 
-<a
-href="backup_restore.php"
-class="btn btn-secondary"
->
-Back
-</a>
+            <a
+                href="backup_restore.php"
+                class="btn btn-secondary">
+                Back
+            </a>
 
-</form>
+        </form>
 
-</div>
+    </div>
 
+    <script>
+        document.getElementById("importForm").addEventListener("submit", function(e) {
+            e.preventDefault();
+
+            Swal.fire({
+                title: "Are you sure?",
+                text: "This will import Excel data into inventory database.",
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#0d6efd",
+                cancelButtonColor: "#6c757d",
+                confirmButtonText: "Yes, import it!"
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    this.submit();
+                }
+            });
+        });
+    </script>
 </body>
+
 </html>

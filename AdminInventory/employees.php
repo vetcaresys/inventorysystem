@@ -15,68 +15,146 @@ if (
 ========================= */
 if (isset($_POST['add_employee'])) {
 
-    $name = $_POST['employee_name'];
-    $office = $_POST['office_unit'];
-    $position = $_POST['position'];
-    $contact = $_POST['contact_no'];
+    $name = trim($_POST['employee_name']);
+    $office = trim($_POST['office_unit']);
+    if ($_POST['position'] == 'other') {
+        $position = trim($_POST['custom_position']);
+    } else {
+        $position = trim($_POST['position']);
+    }
+    $contact = trim($_POST['contact_no']);
 
-    $conn->query("
-        INSERT INTO employees (
-            employee_name,
-            office_unit,
-            position,
-            contact_no
-        )
-        VALUES (
-            '$name',
-            '$office',
-            '$position',
-            '$contact'
-        )
-    ");
 
-    header("Location: employees.php");
+    /* duplicate checker */
+    $check = $conn->prepare("
+SELECT employee_id
+FROM employees
+WHERE employee_name=?
+AND office_unit=?
+AND position=?
+");
+
+    $check->bind_param(
+        "sss",
+        $name,
+        $office,
+        $position
+    );
+
+    $check->execute();
+
+    $result = $check->get_result();
+
+
+    if ($result->num_rows > 0) {
+
+        header("Location: employees.php?duplicate=1");
+        exit;
+    }
+
+
+    $stmt = $conn->prepare("
+INSERT INTO employees(
+employee_name,
+office_unit,
+position,
+contact_no
+)
+VALUES(?,?,?,?)
+");
+
+    $stmt->bind_param(
+        "ssss",
+        $name,
+        $office,
+        $position,
+        $contact
+    );
+
+    $stmt->execute();
+
+    header("Location: employees.php?success=1");
     exit;
 }
 
-// EDIT EMPLOYEE
 if (isset($_POST['update_employee'])) {
 
     $id = $_POST['employee_id'];
-    $name = $_POST['employee_name'];
-    $office = $_POST['office_unit'];
-    $position = $_POST['position'];
-    $contact = $_POST['contact_no'];
+    $name = trim($_POST['employee_name']);
+    $office = trim($_POST['office_unit']);
+    $position = trim($_POST['position']);
+    $contact = trim($_POST['contact_no']);
 
-    $conn->query("
-        UPDATE employees SET
-        employee_name='$name',
-        office_unit='$office',
-        position='$position',
-        contact_no='$contact'
-        WHERE employee_id=$id
-    ");
 
-    header("Location: employees.php");
+    /* prevent updating into duplicate of another employee */
+    $check = $conn->prepare("
+SELECT employee_id
+FROM employees
+WHERE employee_name=?
+AND office_unit=?
+AND position=?
+AND employee_id != ?
+");
+
+    $check->bind_param(
+        "sssi",
+        $name,
+        $office,
+        $position,
+        $id
+    );
+
+    $check->execute();
+
+    $result = $check->get_result();
+
+    if ($result->num_rows > 0) {
+        header("Location: employees.php?duplicate=1");
+        exit;
+    }
+
+
+    /* update */
+    $stmt = $conn->prepare("
+UPDATE employees SET
+employee_name=?,
+office_unit=?,
+position=?,
+contact_no=?
+WHERE employee_id=?
+");
+
+    $stmt->bind_param(
+        "ssssi",
+        $name,
+        $office,
+        $position,
+        $contact,
+        $id
+    );
+
+    $stmt->execute();
+
+    header("Location: employees.php?updated=1");
     exit;
 }
 
 
-/* =========================
-   DELETE EMPLOYEE
-========================= */
-if (isset($_GET['delete'])) {
+// /* =========================
+//    DELETE EMPLOYEE
+// ========================= */
+// if (isset($_GET['delete'])) {
 
-    $id = $_GET['delete'];
+//     $id = $_GET['delete'];
 
-    $conn->query("
-        DELETE FROM employees 
-        WHERE employee_id = $id
-    ");
+//     $conn->query("
+//         DELETE FROM employees 
+//         WHERE employee_id = $id
+//     ");
 
-    header("Location: employees.php");
-    exit;
-}
+//     header("Location: employees.php");
+//     exit;
+// }
 
 
 /* =========================
@@ -154,38 +232,58 @@ $employees = $conn->query("
 
         <nav class="nav flex-column mt-4">
 
-            <a href="inventory_dashboard.php" class="nav-link">
-                <i class="bi bi-speedometer2"></i> Dashboard
+            <a href="userprofile.php" class="nav-link">
+                <i class="bi bi-person-circle"></i> 
+                User Profile
             </a>
 
-            <a href="employees.php" class="nav-link active">
-                <i class="bi bi-people"></i> Employees
+            <a href="inventory_dashboard.php"
+                class="nav-link">
+                <i class="bi bi-speedometer2"></i>
+                Dashboard
             </a>
 
-            <a href="inventory_items.php" class="nav-link">
-                <i class="bi bi-box-seam"></i> Inventory Items
+            <a href="employees.php"
+                class="nav-link active">
+                <i class="bi bi-people"></i>
+                Employees
             </a>
 
-            <a href="borrow_records.php" class="nav-link">
-                <i class="bi bi-journal-arrow-up"></i> Borrow Records
+            <a href="inventory_items.php"
+                class="nav-link">
+                <i class="bi bi-box-seam"></i>
+                Inventory Items
             </a>
 
-            <a href="return_records.php" class="nav-link">
-                <i class="bi bi-journal-arrow-down"></i> Return Records
+            <a href="borrow_records.php"
+                class="nav-link">
+                <i class="bi bi-journal-arrow-up"></i>
+                Borrow Records
             </a>
 
-            <a href="inventory_reports.php" class="nav-link">
-                <i class="bi bi-bar-chart-line"></i> Reports
+            <a href="return_records.php"
+                class="nav-link">
+                <i class="bi bi-journal-arrow-down"></i>
+                Return Records
+            </a>
+
+            <a href="inventory_reports.php"
+                class="nav-link">
+                <i class="bi bi-bar-chart-line"></i>
+                Reports
             </a>
 
             <a href="backup_restore.php" class="nav-link">
-                <i class="bi bi-database-fill-gear"></i> Backup & Restore
+                <i class="bi bi-database-fill-gear"></i>
+                Backup & Restore
             </a>
 
             <hr>
 
-            <a href="../logout.php" class="nav-link text-warning">
-                <i class="bi bi-box-arrow-left"></i> Logout
+            <a href="../logout.php"
+                class="nav-link text-warning">
+                <i class="bi bi-box-arrow-left"></i>
+                Logout
             </a>
 
         </nav>
@@ -214,11 +312,35 @@ $employees = $conn->query("
                     </div>
 
                     <div class="col-md-3">
-                        <input type="text" name="position" class="form-control" placeholder="Position" required>
+                        <select name="position" id="positionSelect" class="form-control" required>
+                            <option value="">Select Position</option>
+
+                            <option>Statistician I</option>
+                            <option>Statistician II</option>
+                            <option>Statistical Aide</option>
+                            <option>Registration Officer I</option>
+                            <option>Registration Officer II</option>
+                            <option>Administrative Officer</option>
+                            <option>Data Encoder</option>
+                            <option>IT Support</option>
+
+                            <option value="other">Other (Specify)</option>
+                        </select>
+
+                        <input type="text" name="custom_position" id="customPosition"
+                            class="form-control mt-2"
+                            placeholder="Enter position"
+                            style="display:none;">
                     </div>
 
                     <div class="col-md-2">
-                        <input type="text" name="contact_no" class="form-control" placeholder="Contact No">
+                        <input type="text"
+                            name="contact_no"
+                            class="form-control"
+                            placeholder="Contact No"
+                            maxlength="11"
+                            inputmode="numeric"
+                            required>
                     </div>
 
                 </div>
@@ -284,12 +406,12 @@ $employees = $conn->query("
                                     Edit
                                 </button>
 
-                                <!-- DELETE -->
+                                <!-- DELETE
                                 <a href="?delete=<?= $e['employee_id']; ?>"
                                     class="btn btn-danger btn-sm"
                                     onclick="return confirm('Delete this employee?')">
                                     Delete
-                                </a>
+                                </a> -->
                             </td>
                         </tr>
 
@@ -495,6 +617,88 @@ $employees = $conn->query("
                 noResult.style.display = "none";
             } else {
                 noResult.style.display = "";
+            }
+
+        });
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <?php if (isset($_GET['duplicate'])): ?>
+        <script>
+            Swal.fire({
+                icon: 'warning',
+                title: 'Duplicate Employee',
+                text: 'Employee already exists.',
+                confirmButtonColor: '#0d6efd'
+            });
+        </script>
+    <?php endif; ?>
+
+
+    <?php if (isset($_GET['success'])): ?>
+        <script>
+            Swal.fire({
+                icon: 'success',
+                title: 'Employee Added',
+                text: 'Employee saved successfully.',
+                confirmButtonColor: '#198754'
+            });
+        </script>
+    <?php endif; ?>
+
+    <?php if (isset($_GET['updated'])): ?>
+        <script>
+            Swal.fire({
+                icon: 'success',
+                title: 'Updated Successfully',
+                text: 'Employee record has been updated.',
+                confirmButtonColor: '#198754'
+            });
+        </script>
+    <?php endif; ?>
+
+    <script>
+        const contactInput = document.querySelector("input[name='contact_no']");
+
+        // block non-numbers while typing
+        contactInput.addEventListener("input", function() {
+            this.value = this.value.replace(/[^0-9]/g, '');
+        });
+    </script>
+
+    <script>
+        document.querySelector("form").addEventListener("submit", function(e) {
+
+            let contact = document.querySelector("input[name='contact_no']").value;
+
+            // must be exactly 11 digits
+            if (!/^[0-9]{11}$/.test(contact)) {
+                e.preventDefault();
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Invalid Contact Number',
+                    text: 'Contact number must be exactly 11 digits and numbers only.'
+                });
+
+                return false;
+            }
+
+        });
+    </script>
+
+    <script>
+        document.getElementById("positionSelect").addEventListener("change", function() {
+
+            let custom = document.getElementById("customPosition");
+
+            if (this.value === "other") {
+                custom.style.display = "block";
+                custom.required = true;
+            } else {
+                custom.style.display = "none";
+                custom.required = false;
             }
 
         });

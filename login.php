@@ -32,14 +32,23 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
             $_SESSION['role']      = $user['role'];
             $_SESSION['fullname']  = $user['fullname'];
 
+            // ✅ UPDATE LAST LOGIN (SAFE HERE)
+            $uid = $user['user_id'];
+
+            $conn->query("
+        UPDATE users 
+        SET last_login = NOW() 
+        WHERE user_id = $uid
+    ");
+
             /* ROLE REDIRECT */
             if ($user['role'] == "forms_admin") {
-                header("Location: AdminForms/forms_dashboard.php");
+                header("Location: AdminForms/forms_dashboard.php?login=success");
                 exit;
             }
 
             if ($user['role'] == "inventory_admin") {
-                header("Location: AdminInventory/inventory_dashboard.php");
+                header("Location: AdminInventory/userprofile.php?login=success");
                 exit;
             }
         } else {
@@ -64,6 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <link rel="stylesheet" href="assets/css/style.css">
 
@@ -297,6 +307,23 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
+    <?php if (isset($_GET['logout']) && $_GET['logout'] == 'success'): ?>
+        <script>
+            Swal.fire({
+                icon: 'success',
+                title: 'Logged Out!',
+                text: 'You have successfully logged out.',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        </script>
+    <?php endif; ?>
+
+    <script toast: true,
+position: 'top-end',
+timer: 2000>
+        
+    </script>
 </body>
 
 </html>

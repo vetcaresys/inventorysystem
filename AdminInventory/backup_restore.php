@@ -22,6 +22,7 @@ if (
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
         body {
@@ -88,10 +89,14 @@ if (
             <h5 class="fw-bold mb-0">
                 PSA INVENTORY ADMIN
             </h5>
-            <small>Equipment & Borrowing Module</small>
+            <small>Backup Module</small>
         </div>
 
         <nav class="nav flex-column mt-4">
+            <a href="userprofile.php" class="nav-link">
+                <i class="bi bi-person-circle"></i>
+                User Profile
+            </a>
 
             <a href="inventory_dashboard.php" class="nav-link">
                 <i class="bi bi-speedometer2"></i>
@@ -129,6 +134,8 @@ if (
             </a>
 
             <hr>
+
+            </a>
 
             <a href="../logout.php"
                 class="nav-link text-warning">
@@ -178,8 +185,7 @@ if (
                         (items, employees, borrow, returns).
                     </p>
 
-                    <a href="export_backup.php"
-                        class="btn btn-success btn-lg">
+                    <a href="#" class="btn btn-success btn-lg" onclick="confirmSqlBackup(event)">
                         Export SQL Backup
                     </a>
 
@@ -216,12 +222,8 @@ if (
                             type="submit"
                             name="import"
                             class="btn btn-primary btn-lg w-100"
-                            onclick="return confirm(
-'Import may overwrite data. Continue?'
-);">
-
+                            onclick="confirmRestore(event)">
                             Restore Backup
-
                         </button>
 
                     </form>
@@ -246,8 +248,7 @@ if (
                         borrow and returns to Excel.
                     </p>
 
-                    <a href="export_excel_backup.php"
-                        class="btn btn-success btn-lg">
+                    <a href="#" class="btn btn-success btn-lg" onclick="confirmExcelBackup(event)">
                         Export Excel Backup
                     </a>
 
@@ -291,6 +292,62 @@ if (
         </footer>
 
     </div>
+
+    <script>
+        function confirmSqlBackup(e) {
+            e.preventDefault();
+
+            Swal.fire({
+                title: "Are you sure?",
+                text: "This will export full SQL database backup.",
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#198754",
+                cancelButtonColor: "#6c757d",
+                confirmButtonText: "Yes, export it!"
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = "export_backup.php";
+                }
+            });
+        }
+
+        function confirmExcelBackup(e) {
+            e.preventDefault();
+
+            Swal.fire({
+                title: "Are you sure?",
+                text: "This will export all data to Excel files.",
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#198754",
+                cancelButtonColor: "#6c757d",
+                confirmButtonText: "Yes, export it!"
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = "export_excel_backup.php";
+                }
+            });
+        }
+
+        function confirmRestore(e) {
+            e.preventDefault();
+
+            Swal.fire({
+                title: "Warning!",
+                text: "Import may overwrite existing data. Continue?",
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#0d6efd",
+                cancelButtonColor: "#6c757d",
+                confirmButtonText: "Yes, restore it!"
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    e.target.closest("form").submit();
+                }
+            });
+        }
+    </script>
 
 </body>
 

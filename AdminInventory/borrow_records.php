@@ -22,14 +22,14 @@ if (isset($_POST['borrow'])) {
 
     // insert borrow record
     $conn->query("
-        INSERT INTO borrow_records (
+        INSERT INTO borrow_records(
             item_id,
             employee_id,
             quantity_borrowed,
             borrow_date,
             status
         )
-        VALUES (
+        VALUES(
             '$item_id',
             '$employee_id',
             '$quantity',
@@ -45,7 +45,7 @@ if (isset($_POST['borrow'])) {
         WHERE item_id = $item_id
     ");
 
-    header("Location: borrow_records.php");
+    header("Location: borrow_records.php?borrowed=success");
     exit;
 }
 
@@ -139,6 +139,11 @@ ORDER BY b.borrow_id DESC
 
         <nav class="nav flex-column mt-4">
 
+            <a href="userprofile.php" class="nav-link">
+                <i class="bi bi-person-circle"></i>
+                User Profile
+            </a>
+
             <a href="inventory_dashboard.php" class="nav-link">
                 <i class="bi bi-speedometer2"></i> Dashboard
             </a>
@@ -193,7 +198,11 @@ ORDER BY b.borrow_id DESC
                         <select name="item_id" class="form-control select-item" required>
                             <option value="">-- Select Item --</option>
                             <?php while ($i = $items->fetch_assoc()) { ?>
-                                <option value="<?= $i['item_id']; ?>">
+                                <option
+                                    value="<?= $i['item_id']; ?>"
+                                    data-qty="<?= $i['quantity']; ?>"
+                                    data-property="<?= $i['property_no']; ?>">
+
                                     <?= $i['description']; ?> (<?= $i['quantity']; ?> available)
                                 </option>
                             <?php } ?>
@@ -213,7 +222,7 @@ ORDER BY b.borrow_id DESC
 
                     <div class="col-md-2">
                         <label class="form-label">Quantity</label>
-                        <input type="number" name="quantity" class="form-control" required>
+                        <input type="number" name="quantity" id="quantityInput" class="form-control" required>
                     </div>
 
                     <div class="col-md-3">
@@ -374,34 +383,6 @@ ORDER BY b.borrow_id DESC
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
     <script>
-        $(document).ready(function() {
-            $('.select-item').select2({
-                placeholder: "Search item...",
-                allowClear: true,
-                width: '100%'
-            });
-        });
-    </script>
-
-    <script>
-        $(document).ready(function() {
-
-            $('.select-item').select2({
-                placeholder: "Search item...",
-                allowClear: true,
-                width: '100%'
-            });
-
-            $('.select-employee').select2({
-                placeholder: "Search employee...",
-                allowClear: true,
-                width: '100%'
-            });
-
-        });
-    </script>
-
-    <script>
         document.getElementById('searchBorrow').addEventListener('keyup', function() {
 
             let value = this.value.toLowerCase();
@@ -425,6 +406,81 @@ ORDER BY b.borrow_id DESC
             document.getElementById("noResultRow").style.display =
                 found ? "none" : "";
 
+        });
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <?php if (isset($_GET['borrowed']) && $_GET['borrowed'] == "success") { ?>
+        <script>
+            Swal.fire({
+                icon: 'success',
+                title: 'Borrow Recorded!',
+                text: 'Item borrowed successfully.',
+                confirmButtonColor: '#3085d6'
+            });
+        </script>
+    <?php } ?>
+
+    <script>
+        $(document).ready(function() {
+
+            $('.select-item').select2({
+                placeholder: "Search item...",
+                allowClear: true,
+                width: '100%',
+
+                templateResult: function(data) {
+
+                    if (!data.id) return data.text;
+
+                    let property = $(data.element).data('property');
+                    let qty = $(data.element).data('qty');
+
+                    return $(`
+                <span title="Property No: ${property} | Available: ${qty}">
+                    ${data.text}
+                </span>
+            `);
+                },
+
+                templateSelection: function(data) {
+                    return data.text;
+                }
+            });
+
+            $('.select-employee').select2({
+                placeholder: "Search employee...",
+                allowClear: true,
+                width: '100%'
+            });
+
+        });
+    </script>
+
+    <script>
+        $('.select-item').on('change', function() {
+
+            let selected = $(this).find(':selected');
+
+            let qty = selected.data('qty');
+
+            if (qty !== undefined) {
+                $('#quantityInput').val(qty);
+            } else {
+                $('#quantityInput').val('');
+            }
+
+        });
+    </script>
+
+    <script>
+        $(document).on('mouseenter', '.select2-results__option', function() {
+            $(this).tooltip({
+                title: $(this).attr('title'),
+                placement: 'right',
+                trigger: 'hover'
+            }).tooltip('show');
         });
     </script>
 </body>

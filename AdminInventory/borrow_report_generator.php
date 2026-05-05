@@ -20,6 +20,7 @@ FROM employees
     <title>Borrow Report Generator</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
         body {
@@ -46,7 +47,7 @@ FROM employees
             Generate Borrowed Items Report
         </h3>
 
-        <form action="generate_borrow_report.php" method="GET">
+        <form id="borrowReportForm" action="generate_borrow_report.php" method="GET">
 
             <div class="row g-3">
 
@@ -140,6 +141,26 @@ FROM employees
         </form>
 
     </div>
+
+    <script>
+        document.getElementById("borrowReportForm").addEventListener("submit", function(e) {
+            e.preventDefault();
+
+            Swal.fire({
+                title: "Are you sure?",
+                text: "Do you want to generate this borrow report?",
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#0d6efd",
+                cancelButtonColor: "#6c757d",
+                confirmButtonText: "Yes, generate it!"
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    this.submit();
+                }
+            });
+        });
+    </script>
 
 </body>
 

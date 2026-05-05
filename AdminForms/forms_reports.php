@@ -11,52 +11,39 @@ if (
 }
 
 
-
 /* =========================
-REPORT DATA
+SUMMARY DATA
 ========================= */
 
-// ALL FORMS
-$forms = $conn->query("
-SELECT *
-FROM forms
-ORDER BY form_name ASC
-");
+$totalForms = $conn->query("
+SELECT COUNT(*) as total FROM forms
+")->fetch_assoc()['total'];
+
+$totalStock = $conn->query("
+SELECT COALESCE(SUM(current_stock),0) as total FROM forms
+")->fetch_assoc()['total'];
+
+$totalSold = $conn->query("
+SELECT COALESCE(SUM(quantity_sold),0) as total FROM form_sales
+")->fetch_assoc()['total'];
 
 
-// TOTAL SOLD PER FORM
-$sales = $conn->query("
+/* =========================
+REPORT DATA (OPTIMIZED)
+========================= */
+
+$report = $conn->query("
 SELECT 
-f.form_name,
-COALESCE(SUM(s.quantity_sold),0) as total_sold
+    f.form_name,
+    f.current_stock,
+    COALESCE(SUM(r.quantity_received),0) as received,
+    COALESCE(SUM(s.quantity_sold),0) as sold
 FROM forms f
-LEFT JOIN form_sales s
-ON f.form_id = s.form_id
+LEFT JOIN form_restock r ON f.form_id = r.form_id
+LEFT JOIN form_sales s ON f.form_id = s.form_id
 GROUP BY f.form_id
+ORDER BY f.form_name ASC
 ");
-
-$soldData = [];
-while ($row = $sales->fetch_assoc()) {
-    $soldData[] = $row;
-}
-
-
-// TOTAL RESTOCK PER FORM
-$restock = $conn->query("
-SELECT 
-f.form_name,
-COALESCE(SUM(r.quantity_received),0) as total_received
-FROM forms f
-LEFT JOIN form_restock r
-ON f.form_id = r.form_id
-GROUP BY f.form_id
-");
-
-$restockData = [];
-while ($row = $restock->fetch_assoc()) {
-    $restockData[] = $row;
-}
-
 ?>
 
 <!DOCTYPE html>
@@ -127,43 +114,41 @@ while ($row = $restock->fetch_assoc()) {
     <div id="sidebar">
 
         <div class="p-4 text-center border-bottom text-white">
-            <h5 class="fw-bold mb-0">
-                PSA FORMS ADMIN
-            </h5>
+            <h5 class="fw-bold mb-0">PSA FORMS ADMIN</h5>
             <small>Reports Module</small>
         </div>
 
         <nav class="nav flex-column mt-4">
 
-            <a href="forms_dashboard.php"
-                class="nav-link">
+            <a href="forms_dashboard.php" class="nav-link">
+                <i class="bi bi-speedometer2"></i>
                 Dashboard
             </a>
 
-            <a href="forms_inventory.php"
-                class="nav-link">
+            <a href="forms_inventory.php" class="nav-link">
+                <i class="bi bi-file-earmark-text"></i>
                 Forms Inventory
             </a>
 
-            <a href="restock_forms.php"
-                class="nav-link">
+            <a href="restock_forms.php" class="nav-link">
+                <i class="bi bi-box-seam"></i>
                 Restock Forms
             </a>
 
-            <a href="sales.php"
-                class="nav-link">
+            <a href="sales.php" class="nav-link">
+                <i class="bi bi-cart-check"></i>
                 Sell Forms
             </a>
 
-            <a href="forms_reports.php"
-                class="nav-link active">
+            <a href="forms_reports.php" class="nav-link active">
+                <i class="bi bi-bar-chart-line"></i>
                 Reports
             </a>
 
             <hr>
 
-            <a href="../logout.php"
-                class="nav-link text-warning">
+            <a href="../logout.php" class="nav-link text-warning">
+                <i class="bi bi-box-arrow-left"></i>
                 Logout
             </a>
 
@@ -175,126 +160,139 @@ while ($row = $restock->fetch_assoc()) {
     <!-- MAIN -->
     <div id="main">
 
-
+        <!-- HEADER -->
         <nav class="navbar bg-white rounded-4 shadow-sm px-4 mb-4">
-
-            <h4 class="mb-0">
-                Forms Inventory Report
-            </h4>
-
+            <div>
+                <h4 class="mb-0 fw-bold">Forms Inventory Report</h4>
+                <small class="text-muted">Overview and detailed tracking of forms</small>
+            </div>
         </nav>
 
 
-
-        <!-- SUMMARY CARDS -->
+        <!-- SUMMARY -->
         <div class="row g-4 mb-4">
 
-            <?php
-            $totalForms = $conn->query("
-SELECT COUNT(*) t FROM forms
-")->fetch_assoc()['t'];
-
-            $totalStock = $conn->query("
-SELECT SUM(current_stock) s FROM forms
-")->fetch_assoc()['s'];
-
-            $totalSold = $conn->query("
-SELECT SUM(quantity_sold) s FROM form_sales
-")->fetch_assoc()['s'];
-
-            ?>
-
             <div class="col-md-4">
                 <div class="card card-box p-4">
-                    <small>Total Form Types</small>
-                    <h2><?= $totalForms ?></h2>
+                    <small class="text-muted">Total Form Types</small>
+                    <h2 class="fw-bold"><?= $totalForms ?></h2>
                 </div>
             </div>
 
             <div class="col-md-4">
                 <div class="card card-box p-4">
-                    <small>Total Stock</small>
-                    <h2><?= $totalStock ?></h2>
+                    <small class="text-muted">Total Stock</small>
+                    <h2 class="fw-bold"><?= $totalStock ?></h2>
                 </div>
             </div>
 
             <div class="col-md-4">
                 <div class="card card-box p-4">
-                    <small>Total Sold</small>
-                    <h2><?= $totalSold ?></h2>
+                    <small class="text-muted">Total Sold</small>
+                    <h2 class="fw-bold"><?= $totalSold ?></h2>
                 </div>
             </div>
 
         </div>
 
 
+        <!-- ACTION BAR -->
+        <div class="row g-4 mb-4">
+
+            <!-- MONTHLY REPORT -->
+            <div class="col-md-6">
+                <div class="card card-box p-4 h-100">
+
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <h6 class="fw-bold mb-0">Monthly Report</h6>
+                            <small class="text-muted">Generate report by month</small>
+                        </div>
+                        <i class="bi bi-calendar2-month fs-3 text-primary"></i>
+                    </div>
+
+                    <form method="GET" action="generate_monthly_excel.php" class="d-flex gap-2">
+                        <input type="month" name="month" class="form-control" required>
+                        <button type="submit" class="btn btn-primary px-4">
+                            Generate
+                        </button>
+                    </form>
+
+                </div>
+            </div>
+
+            <!-- YEARLY REPORT -->
+            <div class="col-md-6">
+                <div class="card card-box p-4 h-100">
+
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <h6 class="fw-bold mb-0">Yearly Report</h6>
+                            <small class="text-muted">Generate report by year</small>
+                        </div>
+                        <i class="bi bi-calendar-range fs-3 text-success"></i>
+                    </div>
+
+                    <form method="GET" action="generate_yearly_excel.php" class="d-flex gap-2">
+                        <input type="number" name="year" class="form-control"
+                            placeholder="e.g. 2026" required>
+                        <button type="submit" class="btn btn-success px-4">
+                            Generate
+                        </button>
+                    </form>
+
+                </div>
+            </div>
+
+        </div>
+
 
         <!-- REPORT TABLE -->
         <div class="card card-box">
 
             <div class="card-header bg-white">
-                <h5 class="fw-bold mb-0">
-                    Detailed Form Report
-                </h5>
+                <h5 class="fw-bold mb-0">Detailed Form Report</h5>
             </div>
-
 
             <div class="card-body p-0">
 
-                <table class="table text-center mb-0">
+                <table class="table table-hover text-center mb-0 align-middle">
 
-                    <thead>
+                    <thead class="table-light">
                         <tr>
-                            <th>Form</th>
-                            <th>Received</th>
-                            <th>Sold</th>
-                            <th>Current Stock</th>
+                            <th>Form Name</th>
+                            <th class="text-success">Received</th>
+                            <th class="text-warning">Sold</th>
+                            <th class="text-primary">Current Stock</th>
                         </tr>
                     </thead>
 
                     <tbody>
 
-                        <?php while ($f = $forms->fetch_assoc()) { ?>
+                        <?php
+                        if ($report->num_rows == 0) {
+                            echo "<tr><td colspan='4'>No records found</td></tr>";
+                        }
 
-                            <?php
-                            $received = 0;
-                            $sold = 0;
-
-                            /* match received */
-                            foreach ($restockData as $r) {
-                                if ($r['form_name'] == $f['form_name']) {
-                                    $received = $r['total_received'];
-                                }
-                            }
-
-                            /* match sold */
-                            foreach ($soldData as $s) {
-                                if ($s['form_name'] == $f['form_name']) {
-                                    $sold = $s['total_sold'];
-                                }
-                            }
-
-                            $current = $f['current_stock'];
-                            ?>
+                        while ($row = $report->fetch_assoc()) {
+                        ?>
 
                             <tr>
 
-                                <td>
-                                    <?= $f['form_name']; ?>
+                                <td class="fw-semibold">
+                                    <?= $row['form_name']; ?>
                                 </td>
 
-                                <td>
-                                    <?= $received; ?>
+                                <td class="text-success fw-bold">
+                                    <?= $row['received']; ?>
                                 </td>
 
-                                <td>
-                                    <?= $sold; ?>
+                                <td class="text-warning fw-bold">
+                                    <?= $row['sold']; ?>
                                 </td>
 
-                                <td>
-                                    <strong>
-                                        <?= $current; ?>
-                                    </strong>
+                                <td class="text-primary fw-bold">
+                                    <?= $row['current_stock']; ?>
                                 </td>
 
                             </tr>
@@ -307,6 +305,8 @@ SELECT SUM(quantity_sold) s FROM form_sales
 
             </div>
         </div>
+
+    </div>
 
     </div>
 

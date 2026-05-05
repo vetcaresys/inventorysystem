@@ -10,9 +10,8 @@ if (
     exit;
 }
 
-
 /* =========================
-   ADD ITEM
+ADD ITEM
 ========================= */
 if (isset($_POST['add_item'])) {
 
@@ -29,7 +28,26 @@ if (isset($_POST['add_item'])) {
     $location = $_POST['location'];
     $accountable_officer = $_POST['accountable_officer'];
 
-    $conn->query("
+
+    /* duplicate check using property no */
+    $check = $conn->prepare("
+SELECT item_id
+FROM equipment_inventory
+WHERE property_no=?
+");
+
+    $check->bind_param("s", $property_no);
+    $check->execute();
+
+    $res = $check->get_result();
+
+    if ($res->num_rows > 0) {
+        header("Location: inventory_items.php?duplicate=1");
+        exit;
+    }
+
+
+    $stmt = $conn->prepare("
 INSERT INTO equipment_inventory(
 property_no,
 inventory_tag_no,
@@ -44,30 +62,34 @@ item_condition,
 location,
 accountable_officer
 )
-VALUES(
-'$property_no',
-'$inventory_tag_no',
-'$description',
-'$category',
-'$serial_no',
-'$date_acquired',
-'$acquisition_cost',
-'$quantity',
-'$unit',
-'$item_condition',
-'$location',
-'$accountable_officer'
-)
+VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
 ");
 
-    header("Location: inventory_items.php");
+    $stmt->bind_param(
+        "ssssssdissss",
+        $property_no,
+        $inventory_tag_no,
+        $description,
+        $category,
+        $serial_no,
+        $date_acquired,
+        $acquisition_cost,
+        $quantity,
+        $unit,
+        $item_condition,
+        $location,
+        $accountable_officer
+    );
+
+    $stmt->execute();
+
+    header("Location: inventory_items.php?added=1");
     exit;
 }
 
 
-
 /* =========================
-   UPDATE ITEM
+UPDATE ITEM
 ========================= */
 if (isset($_POST['update_item'])) {
 
@@ -86,44 +108,88 @@ if (isset($_POST['update_item'])) {
     $location = $_POST['location'];
     $accountable_officer = $_POST['accountable_officer'];
 
-    $conn->query("
+
+    /* prevent duplicate property no */
+    $check = $conn->prepare("
+SELECT item_id
+FROM equipment_inventory
+WHERE property_no=?
+AND item_id != ?
+");
+
+    $check->bind_param(
+        "si",
+        $property_no,
+        $id
+    );
+
+    $check->execute();
+
+    $res = $check->get_result();
+
+    if ($res->num_rows > 0) {
+        header("Location: inventory_items.php?duplicate=1");
+        exit;
+    }
+
+
+    $stmt = $conn->prepare("
 UPDATE equipment_inventory SET
-property_no='$property_no',
-inventory_tag_no='$inventory_tag_no',
-description='$description',
-category='$category',
-serial_no='$serial_no',
-date_acquired='$date_acquired',
-acquisition_cost='$acquisition_cost',
-quantity='$quantity',
-unit='$unit',
-item_condition='$item_condition',
-location='$location',
-accountable_officer='$accountable_officer'
-WHERE item_id=$id
+property_no=?,
+inventory_tag_no=?,
+description=?,
+category=?,
+serial_no=?,
+date_acquired=?,
+acquisition_cost=?,
+quantity=?,
+unit=?,
+item_condition=?,
+location=?,
+accountable_officer=?
+WHERE item_id=?
 ");
 
-    header("Location: inventory_items.php");
+    $stmt->bind_param(
+        "ssssssdissssi",
+        $property_no,
+        $inventory_tag_no,
+        $description,
+        $category,
+        $serial_no,
+        $date_acquired,
+        $acquisition_cost,
+        $quantity,
+        $unit,
+        $item_condition,
+        $location,
+        $accountable_officer,
+        $id
+    );
+
+    $stmt->execute();
+
+    header("Location: inventory_items.php?updated=1");
     exit;
 }
 
 
 
-/* =========================
-DELETE ITEM
-========================= */
-if (isset($_GET['delete'])) {
+// /* =========================
+// DELETE ITEM
+// ========================= */
+// if (isset($_GET['delete'])) {
 
-    $id = $_GET['delete'];
+//     $id = $_GET['delete'];
 
-    $conn->query("
-DELETE FROM equipment_inventory
-WHERE item_id=$id
-");
+//     $conn->query("
+// DELETE FROM equipment_inventory
+// WHERE item_id=$id
+// ");
 
-    header("Location: inventory_items.php");
-    exit;
-}
+//     header("Location: inventory_items.php");
+//     exit;
+// }
 
 
 
@@ -202,38 +268,58 @@ ORDER BY item_id DESC
 
         <nav class="nav flex-column mt-4">
 
-            <a href="inventory_dashboard.php" class="nav-link">
-                <i class="bi bi-speedometer2"></i> Dashboard
+            <a href="userprofile.php" class="nav-link">
+                <i class="bi bi-person-circle"></i> 
+                User Profile
             </a>
 
-            <a href="employees.php" class="nav-link">
-                <i class="bi bi-people"></i> Employees
+            <a href="inventory_dashboard.php"
+                class="nav-link">
+                <i class="bi bi-speedometer2"></i>
+                Dashboard
             </a>
 
-            <a href="inventory_items.php" class="nav-link active">
-                <i class="bi bi-box-seam"></i> Inventory Items
+            <a href="employees.php"
+                class="nav-link">
+                <i class="bi bi-people"></i>
+                Employees
             </a>
 
-            <a href="borrow_records.php" class="nav-link">
-                <i class="bi bi-journal-arrow-up"></i> Borrow Records
+            <a href="inventory_items.php"
+                class="nav-link active">
+                <i class="bi bi-box-seam"></i>
+                Inventory Items
             </a>
 
-            <a href="return_records.php" class="nav-link">
-                <i class="bi bi-journal-arrow-down"></i> Return Records
+            <a href="borrow_records.php"
+                class="nav-link">
+                <i class="bi bi-journal-arrow-up"></i>
+                Borrow Records
             </a>
 
-            <a href="inventory_reports.php" class="nav-link">
-                <i class="bi bi-bar-chart-line"></i> Reports
+            <a href="return_records.php"
+                class="nav-link">
+                <i class="bi bi-journal-arrow-down"></i>
+                Return Records
+            </a>
+
+            <a href="inventory_reports.php"
+                class="nav-link">
+                <i class="bi bi-bar-chart-line"></i>
+                Reports
             </a>
 
             <a href="backup_restore.php" class="nav-link">
-                <i class="bi bi-database-fill-gear"></i> Backup & Restore
+                <i class="bi bi-database-fill-gear"></i>
+                Backup & Restore
             </a>
 
             <hr>
 
-            <a href="../logout.php" class="nav-link text-warning">
-                <i class="bi bi-box-arrow-left"></i> Logout
+            <a href="../logout.php"
+                class="nav-link text-warning">
+                <i class="bi bi-box-arrow-left"></i>
+                Logout
             </a>
 
         </nav>
@@ -376,11 +462,11 @@ ORDER BY item_id DESC
                                     Edit
                                 </button>
 
-                                <a href="?delete=<?= $row['item_id']; ?>"
+                                <!-- <a href="?delete=<?= $row['item_id']; ?>"
                                     class="btn btn-danger btn-sm"
                                     onclick="return confirm('Delete this item?')">
                                     Delete
-                                </a>
+                                </a> -->
 
                             </td>
                         </tr>
@@ -843,6 +929,43 @@ ORDER BY item_id DESC
 
         });
     </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <?php if (isset($_GET['duplicate'])): ?>
+        <script>
+            Swal.fire({
+                icon: 'warning',
+                title: 'Duplicate Record',
+                text: 'Property number already exists.',
+                confirmButtonColor: '#0d6efd'
+            });
+        </script>
+    <?php endif; ?>
+
+
+    <?php if (isset($_GET['added'])): ?>
+        <script>
+            Swal.fire({
+                icon: 'success',
+                title: 'Item Added',
+                text: 'Inventory item added successfully.',
+                confirmButtonColor: '#198754'
+            });
+        </script>
+    <?php endif; ?>
+
+
+    <?php if (isset($_GET['updated'])): ?>
+        <script>
+            Swal.fire({
+                icon: 'success',
+                title: 'Updated Successfully',
+                text: 'Inventory item updated.',
+                confirmButtonColor: '#198754'
+            });
+        </script>
+    <?php endif; ?>
 
 </body>
 

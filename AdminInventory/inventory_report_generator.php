@@ -16,6 +16,7 @@ ORDER BY description
     <title>Generate Inventory Report</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
         body {
@@ -42,7 +43,7 @@ ORDER BY description
             Generate Inventory Excel Report
         </h3>
 
-        <form action="generate_inventory_report.php" method="GET">
+        <form id="reportForm" action="generate_inventory_report.php" method="GET">
 
             <div class="mb-3">
                 <label>Year</label>
@@ -114,6 +115,26 @@ ORDER BY description
         </form>
 
     </div>
+
+    <script>
+        document.getElementById("reportForm").addEventListener("submit", function(e) {
+            e.preventDefault(); // stop auto submit
+
+            Swal.fire({
+                title: "Are you sure?",
+                text: "Do you want to generate this inventory report?",
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#198754",
+                cancelButtonColor: "#6c757d",
+                confirmButtonText: "Yes, generate it!"
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    this.submit(); // proceed if YES
+                }
+            });
+        });
+    </script>
 
 </body>
 

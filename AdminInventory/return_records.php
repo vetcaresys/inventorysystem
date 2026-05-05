@@ -60,7 +60,7 @@ if (isset($_POST['return_item'])) {
         WHERE item_id = $item_id
     ");
 
-    header("Location: return_records.php");
+    header("Location: return_records.php?returned=success");
     exit;
 }
 
@@ -74,6 +74,7 @@ $borrowed = $conn->query("
 SELECT 
 b.borrow_id,
 e.description,
+e.property_no,
 b.quantity_borrowed,
 emp.employee_name
 FROM borrow_records b
@@ -176,6 +177,10 @@ ORDER BY r.return_id DESC
         </div>
 
         <nav class="nav flex-column mt-4">
+            <a href="userprofile.php" class="nav-link">
+                <i class="bi bi-person-circle"></i>
+                User Profile
+            </a>
 
             <a href="inventory_dashboard.php" class="nav-link">
                 <i class="bi bi-speedometer2"></i> Dashboard
@@ -234,7 +239,8 @@ ORDER BY r.return_id DESC
                             <?php while ($b = $borrowed->fetch_assoc()) { ?>
                                 <option
                                     value="<?= $b['borrow_id']; ?>"
-                                    data-employee="<?= $b['employee_name']; ?>">
+                                    data-employee="<?= $b['employee_name']; ?>"
+                                    data-property="<?= $b['property_no']; ?>">
 
                                     <?= $b['description']; ?>
                                     (Qty: <?= $b['quantity_borrowed']; ?>)
@@ -489,13 +495,33 @@ ORDER BY r.return_id DESC
             $('.select-borrow').select2({
                 placeholder: "Search borrowed item...",
                 allowClear: true,
-                width: '100%'
+                width: '100%',
+
+                templateResult: function(data) {
+
+                    if (!data.id) return data.text;
+
+                    let property = $(data.element).data('property');
+
+                    return $(`
+<span title="Property No: ${property}">
+${data.text}
+</span>
+`);
+                },
+
+                templateSelection: function(data) {
+                    return data.text;
+                }
+
             });
+
 
             $('#borrowSelect').on('change', function() {
 
-                let employee =
-                    $(this).find(':selected').data('employee');
+                let selected = $(this).find(':selected');
+
+                let employee = selected.data('employee');
 
                 $('#employee_name').val(
                     employee ? employee : ''
@@ -549,6 +575,19 @@ ORDER BY r.return_id DESC
 
         });
     </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <?php if (isset($_GET['returned']) && $_GET['returned'] == "success") { ?>
+        <script>
+            Swal.fire({
+                icon: 'success',
+                title: 'Return Processed!',
+                text: 'Item returned successfully.',
+                confirmButtonColor: '#198754'
+            });
+        </script>
+    <?php } ?>
 
 </body>
 

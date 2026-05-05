@@ -140,6 +140,10 @@ LIMIT 8
         </div>
 
         <nav class="nav flex-column mt-4">
+            <a href="userprofile.php" class="nav-link">
+                <i class="bi bi-person-circle"></i>
+                User Profile
+            </a>
 
             <a href="inventory_dashboard.php" class="nav-link">
                 <i class="bi bi-speedometer2"></i> Dashboard
@@ -205,28 +209,28 @@ LIMIT 8
 
             <div class="col-md-3">
                 <div class="card card-box p-4 text-center">
-                    <small>Total Items</small>
+                    <small>Total Inventory Items</small>
                     <h2><?= $totalItems ?></h2>
                 </div>
             </div>
 
             <div class="col-md-3">
                 <div class="card card-box p-4 text-center">
-                    <small>Borrowed</small>
+                    <small>Currently Borrowed</small>
                     <h2><?= $totalBorrowed ?></h2>
                 </div>
             </div>
 
             <div class="col-md-3">
                 <div class="card card-box p-4 text-center">
-                    <small>Returned</small>
+                    <small>Returned Items</small>
                     <h2><?= $totalReturned ?></h2>
                 </div>
             </div>
 
             <div class="col-md-3">
                 <div class="card card-box p-4 text-center">
-                    <small>Employees</small>
+                    <small>Registered Employees</small>
                     <h2><?= $totalEmployees ?></h2>
                 </div>
             </div>

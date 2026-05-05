@@ -11,11 +11,6 @@ if (
 }
 
 
-/* =========================
-DASHBOARD DATA
-========================= */
-
-
 // total form types
 $q1 = $conn->query("
 SELECT COUNT(*) total
@@ -47,7 +42,7 @@ $totalSold = $row['total'];
 $lowStock = $conn->query("
 SELECT *
 FROM forms
-WHERE current_stock < 50
+WHERE current_stock < min_stock
 ");
 
 
@@ -64,6 +59,13 @@ ON s.form_id=f.form_id
 ORDER BY sale_id DESC
 LIMIT 5
 ");
+
+$q4 = $conn->query("
+SELECT COALESCE(SUM(total_amount),0) total
+FROM form_sales
+");
+$row = $q4->fetch_assoc();
+$totalRevenue = $row['total'];
 ?>
 
 <!DOCTYPE html>
@@ -71,13 +73,10 @@ LIMIT 5
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport"
-        content="width=device-width,initial-scale=1">
-
+    <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Forms Admin Dashboard</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
 
     <style>
@@ -113,25 +112,96 @@ LIMIT 5
             padding: 30px;
         }
 
+        /* NEW STAT CARD DESIGN */
         .card-stat {
             border: none;
             border-radius: 20px;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, .05);
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, .08);
+            background: white;
+            transition: .3s;
         }
 
+        .card-stat:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 18px 35px rgba(0, 0, 0, .12);
+        }
+
+        .card-strip {
+            height: 12px;
+            width: 100%;
+        }
+
+        .strip-blue {
+            background: #0d6efd;
+        }
+
+        .strip-green {
+            background: #198754;
+        }
+
+        .strip-yellow {
+            background: #ffc107;
+        }
+
+        .strip-red {
+            background: #dc3545;
+        }
+
+        .card-stat-body {
+            padding: 25px;
+        }
+
+        .card-stat small {
+            color: #6c757d;
+            font-size: 14px;
+        }
+
+        .card-stat h2 {
+            margin-top: 8px;
+            margin-bottom: 0;
+            font-weight: bold;
+            color: #0d2c6c;
+            font-size: 34px;
+        }
+
+        /* QUICK BUTTONS */
         .quick-btn {
-            border-radius: 15px;
-            padding: 20px;
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
             text-decoration: none;
             display: block;
-            background: white;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, .05);
+            transition: .3s;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, .06);
+            border: 1px solid rgba(0, 0, 0, .05);
+        }
+
+        .quick-btn h5 {
+            color: #0d2c6c;
+            font-weight: bold;
+            margin-top: 12px;
+        }
+
+        .quick-btn p {
+            color: #777;
+            margin-bottom: 0;
+        }
+
+        .quick-btn:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 18px 35px rgba(13, 44, 108, .15);
+            background: #f7fbff;
+        }
+
+        .quick-icon {
+            font-size: 28px;
+            color: #0d6efd;
         }
     </style>
 </head>
 
 <body>
-
 
     <!-- SIDEBAR -->
     <div id="sidebar">
@@ -145,43 +215,36 @@ LIMIT 5
             </small>
         </div>
 
-
         <nav class="nav flex-column mt-4">
 
-            <a href="forms_dashboard.php"
-                class="nav-link active">
+            <a href="forms_dashboard.php" class="nav-link active">
                 <i class="bi bi-speedometer2"></i>
                 Dashboard
             </a>
 
-            <a href="forms_inventory.php"
-                class="nav-link">
+            <a href="forms_inventory.php" class="nav-link">
                 <i class="bi bi-file-earmark-text"></i>
                 Forms Inventory
             </a>
 
-            <a href="restock_forms.php"
-                class="nav-link">
+            <a href="restock_forms.php" class="nav-link">
                 <i class="bi bi-box-seam"></i>
                 Restock Forms
             </a>
 
-            <a href="sales.php"
-                class="nav-link">
+            <a href="sales.php" class="nav-link">
                 <i class="bi bi-cart-check"></i>
                 Sell Forms
             </a>
 
-            <a href="forms_reports.php"
-                class="nav-link">
+            <a href="forms_reports.php" class="nav-link">
                 <i class="bi bi-bar-chart-line"></i>
                 Reports
             </a>
 
             <hr>
 
-            <a href="../logout.php"
-                class="nav-link text-warning">
+            <a href="../logout.php" class="nav-link text-warning">
                 <i class="bi bi-box-arrow-left"></i>
                 Logout
             </a>
@@ -191,123 +254,110 @@ LIMIT 5
     </div>
 
 
-
     <!-- MAIN -->
     <div id="main">
 
         <nav class="navbar bg-white rounded-4 shadow-sm px-4 mb-4">
-            <h4 class="mb-0">
-                Dashboard Overview
-            </h4>
-            <span>
-                <?= $_SESSION['fullname']; ?>
-            </span>
+            <h4 class="mb-0">Dashboard Overview</h4>
+            <span><?= $_SESSION['fullname']; ?></span>
         </nav>
-
 
 
         <!-- STATS -->
         <div class="row g-4">
 
             <div class="col-md-3">
-                <div class="card card-stat p-4">
-                    <small class="text-muted">
-                        Form Types
-                    </small>
-                    <h2>
-                        <?= $totalForms ?>
-                    </h2>
+                <div class="card card-stat">
+                    <div class="card-strip strip-blue"></div>
+                    <div class="card-stat-body">
+                        <small>Form Types</small>
+                        <h2><?= $totalForms ?></h2>
+                    </div>
                 </div>
             </div>
 
             <div class="col-md-3">
-                <div class="card card-stat p-4">
-                    <small class="text-muted">
-                        Current Stock
-                    </small>
-                    <h2>
-                        <?= $totalStock ?>
-                    </h2>
+                <div class="card card-stat">
+                    <div class="card-strip strip-green"></div>
+                    <div class="card-stat-body">
+                        <small>Current Stock</small>
+                        <h2><?= $totalStock ?></h2>
+                    </div>
                 </div>
             </div>
 
             <div class="col-md-3">
-                <div class="card card-stat p-4">
-                    <small class="text-muted">
-                        Total Sold
-                    </small>
-                    <h2>
-                        <?= $totalSold ?>
-                    </h2>
+                <div class="card card-stat">
+                    <div class="card-strip strip-yellow"></div>
+                    <div class="card-stat-body">
+                        <small>Total Sold</small>
+                        <h2><?= $totalSold ?></h2>
+                    </div>
                 </div>
             </div>
 
             <div class="col-md-3">
-                <div class="card card-stat p-4">
-                    <small class="text-muted">
-                        Low Stock Items
-                    </small>
-                    <h2>
-                        <?= $lowStock->num_rows ?>
-                    </h2>
+                <div class="card card-stat">
+                    <div class="card-strip strip-red"></div>
+                    <div class="card-stat-body">
+                        <small>Low Stock Items</small>
+                        <h2><?= $lowStock->num_rows ?></h2>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card card-stat">
+                    <div class="card-strip strip-blue"></div>
+                    <div class="card-stat-body">
+                        <small>Total Revenue</small>
+                        <h2>₱<?= number_format($totalRevenue, 2) ?></h2>
+                    </div>
                 </div>
             </div>
 
         </div>
 
 
-
         <!-- QUICK ACTIONS -->
-        <h5 class="mt-5 mb-3 fw-bold">
-            Quick Actions
-        </h5>
+        <h5 class="mt-5 mb-3 fw-bold">Quick Actions</h5>
 
         <div class="row g-4 mb-5">
 
             <div class="col-md-4">
-                <a href="forms_inventory.php"
-                    class="quick-btn">
+                <a href="forms_inventory.php" class="quick-btn">
+                    <div class="quick-icon"><i class="bi bi-file-earmark-plus"></i></div>
                     <h5>Add Forms</h5>
-                    <p class="text-muted small mb-0">
-                        Manage form records
-                    </p>
+                    <p>Manage form records</p>
                 </a>
             </div>
 
             <div class="col-md-4">
-                <a href="restock_forms.php"
-                    class="quick-btn">
+                <a href="restock_forms.php" class="quick-btn">
+                    <div class="quick-icon"><i class="bi bi-box-seam"></i></div>
                     <h5>Restock</h5>
-                    <p class="text-muted small mb-0">
-                        Receive form deliveries
-                    </p>
+                    <p>Receive form deliveries</p>
                 </a>
             </div>
 
             <div class="col-md-4">
-                <a href="sales.php"
-                    class="quick-btn">
+                <a href="sales.php" class="quick-btn">
+                    <div class="quick-icon"><i class="bi bi-cart-check"></i></div>
                     <h5>Sell Forms</h5>
-                    <p class="text-muted small mb-0">
-                        Process sales transactions
-                    </p>
+                    <p>Process sales transactions</p>
                 </a>
             </div>
 
         </div>
-
 
 
         <!-- LOW STOCK -->
         <div class="card shadow-sm border-0 rounded-4 mb-4">
             <div class="card-header bg-white">
-                <h5 class="mb-0 fw-bold">
-                    Low Stock Alerts
-                </h5>
+                <h5 class="mb-0 fw-bold">Low Stock Alerts</h5>
             </div>
 
             <div class="card-body p-0">
-
                 <table class="table mb-0 text-center">
                     <thead class="table-light">
                         <tr>
@@ -316,59 +366,37 @@ LIMIT 5
                             <th>Status</th>
                         </tr>
                     </thead>
-
                     <tbody>
 
                         <?php
                         if ($lowStock->num_rows == 0) {
-                            echo "
-<tr>
-<td colspan='3'>
-No low stock alerts
-</td>
-</tr>";
+                            echo "<tr><td colspan='3'>No low stock alerts</td></tr>";
                         }
 
                         while ($r = $lowStock->fetch_assoc()) {
                         ?>
-
                             <tr>
+                                <td><?= $r['form_name']; ?></td>
+                                <td><?= $r['current_stock']; ?></td>
                                 <td>
-                                    <?= $r['form_name']; ?>
+                                    <span class="badge bg-danger">Low Stock</span>
                                 </td>
-
-                                <td>
-                                    <?= $r['current_stock']; ?>
-                                </td>
-
-                                <td>
-                                    <span class="badge bg-danger">
-                                        Low Stock
-                                    </span>
-                                </td>
-
                             </tr>
-
                         <?php } ?>
 
                     </tbody>
                 </table>
-
             </div>
         </div>
-
 
 
         <!-- RECENT SALES -->
         <div class="card shadow-sm border-0 rounded-4">
             <div class="card-header bg-white">
-                <h5 class="mb-0 fw-bold">
-                    Recent Sales
-                </h5>
+                <h5 class="mb-0 fw-bold">Recent Sales</h5>
             </div>
 
             <div class="card-body p-0">
-
                 <table class="table mb-0 text-center">
                     <thead class="table-light">
                         <tr>
@@ -378,49 +406,25 @@ No low stock alerts
                             <th>Date</th>
                         </tr>
                     </thead>
-
                     <tbody>
 
                         <?php
                         if ($recentSales->num_rows == 0) {
-                            echo "
-<tr>
-<td colspan='4'>
-No sales yet
-</td>
-</tr>";
+                            echo "<tr><td colspan='4'>No sales yet</td></tr>";
                         }
 
                         while ($sale = $recentSales->fetch_assoc()) {
                         ?>
-
                             <tr>
-                                <td>
-                                    <?= $sale['form_name']; ?>
-                                </td>
-
-                                <td>
-                                    <?= $sale['quantity_sold']; ?>
-                                </td>
-
-                                <td>
-                                    ₱<?= number_format(
-                                            $sale['total_amount'],
-                                            2
-                                        ); ?>
-                                </td>
-
-                                <td>
-                                    <?= $sale['date_sold']; ?>
-                                </td>
-
+                                <td><?= $sale['form_name']; ?></td>
+                                <td><?= $sale['quantity_sold']; ?></td>
+                                <td>₱<?= number_format($sale['total_amount'], 2); ?></td>
+                                <td><?= $sale['date_sold']; ?></td>
                             </tr>
-
                         <?php } ?>
 
                     </tbody>
                 </table>
-
             </div>
         </div>
 
