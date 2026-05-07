@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 
         $user = $result->fetch_assoc();
 
-        // plain text check (change to password_verify later if hashed)
+        // plain text check (better change to password_verify later)
         if ($password == $user['password']) {
 
             $_SESSION['user_id']   = $user['user_id'];
@@ -32,28 +32,33 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
             $_SESSION['role']      = $user['role'];
             $_SESSION['fullname']  = $user['fullname'];
 
-            // ✅ UPDATE LAST LOGIN (SAFE HERE)
+            // ✅ LOGIN SUCCESS ALERT SESSION
+            $_SESSION['login_success'] = $user['fullname'];
+
+            // UPDATE LAST LOGIN
             $uid = $user['user_id'];
 
             $conn->query("
-        UPDATE users 
-        SET last_login = NOW() 
-        WHERE user_id = $uid
-    ");
+                UPDATE users 
+                SET last_login = NOW() 
+                WHERE user_id = $uid
+            ");
 
             /* ROLE REDIRECT */
             if ($user['role'] == "forms_admin") {
-                header("Location: AdminForms/forms_dashboard.php?login=success");
+                header("Location: AdminForms/forms_userprofile.php");
                 exit;
             }
 
             if ($user['role'] == "inventory_admin") {
-                header("Location: AdminInventory/userprofile.php?login=success");
+                header("Location: AdminInventory/userprofile.php");
                 exit;
             }
+
         } else {
             $error = "Invalid password!";
         }
+
     } else {
         $error = "User not found!";
     }
@@ -319,11 +324,6 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
         </script>
     <?php endif; ?>
 
-    <script toast: true,
-position: 'top-end',
-timer: 2000>
-        
-    </script>
 </body>
 
 </html>

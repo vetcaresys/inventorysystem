@@ -62,6 +62,10 @@ ORDER BY f.form_name ASC
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css"
         rel="stylesheet">
 
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.dataTables.min.css">
+
     <style>
         body {
             background: #eef3fb;
@@ -103,6 +107,46 @@ ORDER BY f.form_name ASC
         .table th {
             background: #f5f7fb;
         }
+
+        /* CLEAN REPORT TABLE FIX */
+        .custom-table {
+            border-collapse: separate !important;
+            border-spacing: 0 10px;
+        }
+
+        /* HEADER */
+        .custom-table thead th {
+            background: #f1f5fb;
+            border: none !important;
+            padding: 14px;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* ROW DESIGN */
+        .custom-table tbody tr {
+            background: #fff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            border-radius: 12px;
+            transition: 0.2s;
+        }
+
+        /* CELL */
+        .custom-table tbody td {
+            border: none !important;
+            padding: 14px;
+        }
+
+        /* HOVER EFFECT */
+        .custom-table tbody tr:hover {
+            transform: scale(1.01);
+        }
+
+        /* LEFT ALIGN FORM NAME (LOOKS MORE PROFESSIONAL) */
+        .custom-table tbody td:first-child {
+            text-align: left !important;
+        }
     </style>
 </head>
 
@@ -119,6 +163,10 @@ ORDER BY f.form_name ASC
         </div>
 
         <nav class="nav flex-column mt-4">
+
+            <a href="forms_userprofile.php" class="nav-link">
+                <i class="bi bi-person-circle"></i> My Profile
+            </a>
 
             <a href="forms_dashboard.php" class="nav-link">
                 <i class="bi bi-speedometer2"></i>
@@ -250,66 +298,94 @@ ORDER BY f.form_name ASC
         <!-- REPORT TABLE -->
         <div class="card card-box">
 
-            <div class="card-header bg-white">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
                 <h5 class="fw-bold mb-0">Detailed Form Report</h5>
             </div>
 
-            <div class="card-body p-0">
+            <div class="card-body p-3">
 
-                <table class="table table-hover text-center mb-0 align-middle">
+                <div class="table-responsive">
+                    <table id="formsTable" class="table align-middle text-center mb-0 custom-table">
 
-                    <thead class="table-light">
-                        <tr>
-                            <th>Form Name</th>
-                            <th class="text-success">Received</th>
-                            <th class="text-warning">Sold</th>
-                            <th class="text-primary">Current Stock</th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-
-                        <?php
-                        if ($report->num_rows == 0) {
-                            echo "<tr><td colspan='4'>No records found</td></tr>";
-                        }
-
-                        while ($row = $report->fetch_assoc()) {
-                        ?>
-
+                        <thead>
                             <tr>
-
-                                <td class="fw-semibold">
-                                    <?= $row['form_name']; ?>
-                                </td>
-
-                                <td class="text-success fw-bold">
-                                    <?= $row['received']; ?>
-                                </td>
-
-                                <td class="text-warning fw-bold">
-                                    <?= $row['sold']; ?>
-                                </td>
-
-                                <td class="text-primary fw-bold">
-                                    <?= $row['current_stock']; ?>
-                                </td>
-
+                                <th class="text-start ps-4">Form Name</th>
+                                <th class="text-center">Received</th>
+                                <th class="text-center">Sold</th>
+                                <th class="text-center">Current Stock</th>
                             </tr>
+                        </thead>
 
-                        <?php } ?>
+                        <tbody>
 
-                    </tbody>
+                            <?php if ($report->num_rows == 0) { ?>
+                                <tr>
+                                    <td colspan="4" class="py-4 text-muted">
+                                        No records found
+                                    </td>
+                                </tr>
+                            <?php } ?>
 
-                </table>
+                            <?php while ($row = $report->fetch_assoc()) { ?>
+
+                                <tr>
+
+                                    <td class="fw-semibold text-start ps-4">
+                                        <?= htmlspecialchars($row['form_name']); ?>
+                                    </td>
+
+                                    <td class="text-success fw-bold">
+                                        <?= $row['received']; ?>
+                                    </td>
+
+                                    <td class="text-warning fw-bold">
+                                        <?= $row['sold']; ?>
+                                    </td>
+
+                                    <td class="text-primary fw-bold">
+                                        <?= $row['current_stock']; ?>
+                                    </td>
+
+                                </tr>
+
+                            <?php } ?>
+
+                        </tbody>
+
+                    </table>
+                </div>
 
             </div>
         </div>
-
     </div>
 
     </div>
 
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+    <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+
+    <script>
+        $(document).ready(function() {
+            $('#formsTable').DataTable({
+                pageLength: 10,
+                lengthMenu: [5, 10, 25, 50],
+                responsive: true,
+                language: {
+                    search: "Search forms:",
+                    lengthMenu: "Show _MENU_ entries",
+                    zeroRecords: "No matching records found",
+                    info: "Showing _START_ to _END_ of _TOTAL_ entries",
+                    infoEmpty: "No entries available",
+                    paginate: {
+                        previous: "Prev",
+                        next: "Next"
+                    }
+                }
+            });
+        });
+    </script>
 </body>
 
 </html>

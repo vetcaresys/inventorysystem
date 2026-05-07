@@ -256,8 +256,6 @@ session_start();
 
     </section>
 
-
-
     <!-- FEATURES -->
     <section class="container my-5">
 
@@ -266,46 +264,30 @@ session_start();
             <div class="col-md-4">
                 <div class="feature-box text-center">
                     <i class="bi bi-shield-check fs-1"></i>
-                    <h5 class="mt-3">
-                        Secure Access
-                    </h5>
-                    <p class="text-muted small">
-                        Role-based administrator authentication
-                    </p>
+                    <h5 class="mt-3">Secure Access</h5>
+                    <p class="text-muted small">Role-based administrator authentication</p>
                 </div>
             </div>
-
 
             <div class="col-md-4">
                 <div class="feature-box text-center">
                     <i class="bi bi-clipboard-data fs-1"></i>
-                    <h5 class="mt-3">
-                        Audit Ready
-                    </h5>
-                    <p class="text-muted small">
-                        Complete transaction monitoring
-                    </p>
+                    <h5 class="mt-3">Audit Ready</h5>
+                    <p class="text-muted small">Complete transaction monitoring</p>
                 </div>
             </div>
-
 
             <div class="col-md-4">
                 <div class="feature-box text-center">
                     <i class="bi bi-database-check fs-1"></i>
-                    <h5 class="mt-3">
-                        Asset Tracking
-                    </h5>
-                    <p class="text-muted small">
-                        Inventory and property monitoring
-                    </p>
+                    <h5 class="mt-3">Asset Tracking</h5>
+                    <p class="text-muted small">Inventory and property monitoring</p>
                 </div>
             </div>
 
         </div>
 
     </section>
-
-
 
     <footer class="py-5 border-top text-center">
         <p class="text-muted small mb-1">

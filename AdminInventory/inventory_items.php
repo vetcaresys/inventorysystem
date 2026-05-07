@@ -11,6 +11,27 @@ if (
 }
 
 /* =========================
+FUNCTION: GET OR CREATE RECEIVER
+========================= */
+function getReceiverId($conn, $receiver_name)
+{
+    $check = $conn->prepare("SELECT receiver_id FROM receivers WHERE name=?");
+    $check->bind_param("s", $receiver_name);
+    $check->execute();
+    $res = $check->get_result();
+
+    if ($res->num_rows > 0) {
+        $row = $res->fetch_assoc();
+        return $row['receiver_id'];
+    } else {
+        $insert = $conn->prepare("INSERT INTO receivers(name) VALUES(?)");
+        $insert->bind_param("s", $receiver_name);
+        $insert->execute();
+        return $insert->insert_id;
+    }
+}
+
+/* =========================
 ADD ITEM
 ========================= */
 if (isset($_POST['add_item'])) {
@@ -19,6 +40,7 @@ if (isset($_POST['add_item'])) {
     $inventory_tag_no = $_POST['inventory_tag_no'];
     $description = $_POST['description'];
     $category = $_POST['category'];
+    $equipment_type = $_POST['equipment_type'];
     $serial_no = $_POST['serial_no'];
     $date_acquired = $_POST['date_acquired'];
     $acquisition_cost = $_POST['acquisition_cost'];
@@ -26,19 +48,15 @@ if (isset($_POST['add_item'])) {
     $unit = $_POST['unit'];
     $item_condition = $_POST['item_condition'];
     $location = $_POST['location'];
-    $accountable_officer = $_POST['accountable_officer'];
+    $receiver_name = $_POST['receiver_name'];
 
+    // 🔹 get receiver_id
+    $receiver_id = getReceiverId($conn, $receiver_name);
 
-    /* duplicate check using property no */
-    $check = $conn->prepare("
-SELECT item_id
-FROM equipment_inventory
-WHERE property_no=?
-");
-
+    /* duplicate check */
+    $check = $conn->prepare("SELECT item_id FROM equipment_inventory WHERE property_no=?");
     $check->bind_param("s", $property_no);
     $check->execute();
-
     $res = $check->get_result();
 
     if ($res->num_rows > 0) {
@@ -46,31 +64,32 @@ WHERE property_no=?
         exit;
     }
 
-
     $stmt = $conn->prepare("
-INSERT INTO equipment_inventory(
-property_no,
-inventory_tag_no,
-description,
-category,
-serial_no,
-date_acquired,
-acquisition_cost,
-quantity,
-unit,
-item_condition,
-location,
-accountable_officer
-)
-VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
-");
+        INSERT INTO equipment_inventory(
+            property_no,
+            inventory_tag_no,
+            description,
+            category,
+            equipment_type,
+            serial_no,
+            date_acquired,
+            acquisition_cost,
+            quantity,
+            unit,
+            item_condition,
+            location,
+            receiver_id
+        )
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
+    ");
 
     $stmt->bind_param(
-        "ssssssdissss",
+        "sssssssdisssi",
         $property_no,
         $inventory_tag_no,
         $description,
         $category,
+        $equipment_type,
         $serial_no,
         $date_acquired,
         $acquisition_cost,
@@ -78,7 +97,7 @@ VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
         $unit,
         $item_condition,
         $location,
-        $accountable_officer
+        $receiver_id
     );
 
     $stmt->execute();
@@ -99,6 +118,7 @@ if (isset($_POST['update_item'])) {
     $inventory_tag_no = $_POST['inventory_tag_no'];
     $description = $_POST['description'];
     $category = $_POST['category'];
+    $equipment_type = $_POST['equipment_type'];
     $serial_no = $_POST['serial_no'];
     $date_acquired = $_POST['date_acquired'];
     $acquisition_cost = $_POST['acquisition_cost'];
@@ -106,25 +126,18 @@ if (isset($_POST['update_item'])) {
     $unit = $_POST['unit'];
     $item_condition = $_POST['item_condition'];
     $location = $_POST['location'];
-    $accountable_officer = $_POST['accountable_officer'];
+    $receiver_name = $_POST['receiver_name'];
 
+    // 🔹 get receiver_id
+    $receiver_id = getReceiverId($conn, $receiver_name);
 
     /* prevent duplicate property no */
     $check = $conn->prepare("
-SELECT item_id
-FROM equipment_inventory
-WHERE property_no=?
-AND item_id != ?
-");
-
-    $check->bind_param(
-        "si",
-        $property_no,
-        $id
-    );
-
+        SELECT item_id FROM equipment_inventory 
+        WHERE property_no=? AND item_id != ?
+    ");
+    $check->bind_param("si", $property_no, $id);
     $check->execute();
-
     $res = $check->get_result();
 
     if ($res->num_rows > 0) {
@@ -132,30 +145,31 @@ AND item_id != ?
         exit;
     }
 
-
     $stmt = $conn->prepare("
-UPDATE equipment_inventory SET
-property_no=?,
-inventory_tag_no=?,
-description=?,
-category=?,
-serial_no=?,
-date_acquired=?,
-acquisition_cost=?,
-quantity=?,
-unit=?,
-item_condition=?,
-location=?,
-accountable_officer=?
-WHERE item_id=?
-");
+        UPDATE equipment_inventory SET
+            property_no=?,
+            inventory_tag_no=?,
+            description=?,
+            category=?,
+            equipment_type=?,
+            serial_no=?,
+            date_acquired=?,
+            acquisition_cost=?,
+            quantity=?,
+            unit=?,
+            item_condition=?,
+            location=?,
+            receiver_id=?
+        WHERE item_id=?
+    ");
 
     $stmt->bind_param(
-        "ssssssdissssi",
+        "sssssssssdissi",
         $property_no,
         $inventory_tag_no,
         $description,
         $category,
+        $equipment_type,
         $serial_no,
         $date_acquired,
         $acquisition_cost,
@@ -163,7 +177,7 @@ WHERE item_id=?
         $unit,
         $item_condition,
         $location,
-        $accountable_officer,
+        $receiver_id,
         $id
     );
 
@@ -173,32 +187,18 @@ WHERE item_id=?
     exit;
 }
 
-
-
-// /* =========================
-// DELETE ITEM
-// ========================= */
-// if (isset($_GET['delete'])) {
-
-//     $id = $_GET['delete'];
-
-//     $conn->query("
-// DELETE FROM equipment_inventory
-// WHERE item_id=$id
-// ");
-
-//     header("Location: inventory_items.php");
-//     exit;
-// }
-
+$receivers = $conn->query("SELECT * FROM receivers ORDER BY name ASC");
 
 
 /* =========================
-FETCH ITEMS
+FETCH ITEMS (WITH RECEIVER)
 ========================= */
 $items = $conn->query("
-SELECT * FROM equipment_inventory
-ORDER BY item_id DESC
+    SELECT equipment_inventory.*, receivers.name AS receiver_name
+    FROM equipment_inventory
+    LEFT JOIN receivers 
+    ON equipment_inventory.receiver_id = receivers.receiver_id
+    ORDER BY item_id DESC
 ");
 ?>
 
@@ -269,7 +269,7 @@ ORDER BY item_id DESC
         <nav class="nav flex-column mt-4">
 
             <a href="userprofile.php" class="nav-link">
-                <i class="bi bi-person-circle"></i> 
+                <i class="bi bi-person-circle"></i>
                 User Profile
             </a>
 
@@ -283,6 +283,12 @@ ORDER BY item_id DESC
                 class="nav-link">
                 <i class="bi bi-people"></i>
                 Employees
+            </a>
+
+            <a href="receivers.php"
+                class="nav-link">
+                <i class="bi bi-person-badge"></i>
+                Receivers
             </a>
 
             <a href="inventory_items.php"
@@ -352,11 +358,17 @@ ORDER BY item_id DESC
                     </div>
 
                     <div class="col-md-3">
-                        <select name="category" class="form-control" required>
+                        <select name="category" id="category" class="form-control" required>
                             <option>Device</option>
                             <option>Furniture and Fixtures</option>
                             <option>Office Equipment</option>
                             <option>Vehicles</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <select name="equipment_type" id="equipmentType" class="form-control" required>
+                            <option value="">Select Type</option>
                         </select>
                     </div>
 
@@ -373,7 +385,7 @@ ORDER BY item_id DESC
                     </div>
 
                     <div class="col-md-2">
-                        <input name="quantity" class="form-control" placeholder="Qty" required>
+                        <input type="number" name="quantity" class="form-control" value="1" min="1" required>
                     </div>
 
                     <div class="col-md-2">
@@ -381,7 +393,7 @@ ORDER BY item_id DESC
                     </div>
 
                     <div class="col-md-3">
-                        <select name="item_condition" class="form-control">
+                        <select name="item_condition" class="form-control" required>
                             <option>Good</option>
                             <option>Repair Needed</option>
                             <option>Unserviceable</option>
@@ -389,11 +401,27 @@ ORDER BY item_id DESC
                     </div>
 
                     <div class="col-md-3">
-                        <input name="location" class="form-control" placeholder="Location">
+                        <input name="location" class="form-control" placeholder="Location" required>
                     </div>
 
-                    <div class="col-md-6">
-                        <input name="accountable_officer" class="form-control" placeholder="Accountable Officer">
+                    <div class="col-md-3">
+                        <select name="receiver_name" class="form-control" required>
+
+                            <option value=""> Select Receiver </option>
+
+                            <?php
+                            $receivers = $conn->query("SELECT * FROM receivers ORDER BY name ASC");
+
+                            while ($r = $receivers->fetch_assoc()) {
+                            ?>
+
+                                <option value="<?= $r['name']; ?>">
+                                    <?= $r['name']; ?>
+                                </option>
+
+                            <?php } ?>
+
+                        </select>
                     </div>
 
                 </div>
@@ -545,6 +573,14 @@ ORDER BY item_id DESC
                                                 </div>
 
                                                 <div class="col-md-6">
+                                                    <label>Equipment Type</label>
+                                                    <input
+                                                        name="equipment_type"
+                                                        class="form-control"
+                                                        value="<?= $row['equipment_type']; ?>">
+                                                </div>
+
+                                                <div class="col-md-6">
                                                     <label>Serial No</label>
                                                     <input
                                                         name="serial_no"
@@ -616,11 +652,11 @@ ORDER BY item_id DESC
                                                 </div>
 
                                                 <div class="col-md-6">
-                                                    <label>Accountable Officer</label>
+                                                    <label>Received By</label>
                                                     <input
-                                                        name="accountable_officer"
+                                                        name="receiver_name"
                                                         class="form-control"
-                                                        value="<?= $row['accountable_officer']; ?>">
+                                                        value="<?= $row['receiver_name']; ?>">
                                                 </div>
 
                                             </div>
@@ -774,10 +810,10 @@ ORDER BY item_id DESC
 
                                             <div class="col-md-6">
                                                 <label class="fw-bold">
-                                                    Accountable Officer
+                                                    Received By
                                                 </label>
                                                 <div class="form-control">
-                                                    <?= $row['accountable_officer']; ?>
+                                                    <?= $row['receiver_name']; ?>
                                                 </div>
                                             </div>
 
@@ -966,6 +1002,99 @@ ORDER BY item_id DESC
             });
         </script>
     <?php endif; ?>
+
+    <!-- AUTO SEARCH RECEIVER -->
+    <script>
+        document.getElementById("receiverInput").addEventListener("input", function() {
+
+            let query = this.value;
+
+            if (query.length < 1) return;
+
+            fetch("receiver_search.php?term=" + query)
+                .then(res => res.json())
+                .then(data => {
+
+                    let list = document.getElementById("receiverList");
+                    list.innerHTML = "";
+
+                    data.forEach(name => {
+                        let item = document.createElement("button");
+                        item.type = "button";
+                        item.classList.add("list-group-item", "list-group-item-action");
+                        item.innerText = name;
+
+                        item.onclick = () => {
+                            document.getElementById("receiverInput").value = name;
+                            list.innerHTML = "";
+                        };
+
+                        list.appendChild(item);
+                    });
+                });
+        });
+    </script>
+
+    <!-- FOR THE SELECTION OF EQUIPMENT TYPE -->
+    <script>
+        const equipmentTypes = {
+            "Device": [
+                "Computer (Desktop/Laptop)",
+                "Printer",
+                "Scanner",
+                "Projector",
+                "CCTV Camera",
+                "Network Router / Switch",
+                "UPS"
+            ],
+            "Furniture and Fixtures": [
+                "Office Chair",
+                "Executive Table",
+                "Workstation Desk",
+                "Cabinet",
+                "Bookshelf",
+                "Sofa"
+            ],
+            "Office Equipment": [
+                "Photocopier",
+                "Fax Machine",
+                "Laminator",
+                "Shredder",
+                "Air Conditioner",
+                "Telephone System"
+            ],
+            "Supplies": [
+                "Bond Paper",
+                "Ink / Toner",
+                "Ballpen",
+                "Envelopes",
+                "Notebooks"
+            ],
+            "Vehicles": [
+                "Motorcycle",
+                "Car",
+                "Van",
+                "Truck",
+                "Service Vehicle"
+            ]
+        };
+
+        document.getElementById("category").addEventListener("change", function() {
+            let typeSelect = document.getElementById("equipmentType");
+            let selected = this.value;
+
+            typeSelect.innerHTML = '<option value="">-- Select Type --</option>';
+
+            if (equipmentTypes[selected]) {
+                equipmentTypes[selected].forEach(type => {
+                    let opt = document.createElement("option");
+                    opt.value = type;
+                    opt.textContent = type;
+                    typeSelect.appendChild(opt);
+                });
+            }
+        });
+    </script>
 
 </body>
 

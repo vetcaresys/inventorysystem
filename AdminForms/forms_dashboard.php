@@ -78,6 +78,9 @@ $totalRevenue = $row['total'];
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- DataTables -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.dataTables.min.css">
 
     <style>
         body {
@@ -217,6 +220,10 @@ $totalRevenue = $row['total'];
 
         <nav class="nav flex-column mt-4">
 
+            <a href="forms_userprofile.php" class="nav-link">
+                <i class="bi bi-person-circle"></i> My Profile
+            </a>
+
             <a href="forms_dashboard.php" class="nav-link active">
                 <i class="bi bi-speedometer2"></i>
                 Dashboard
@@ -306,16 +313,6 @@ $totalRevenue = $row['total'];
                 </div>
             </div>
 
-            <div class="col-md-3">
-                <div class="card card-stat">
-                    <div class="card-strip strip-blue"></div>
-                    <div class="card-stat-body">
-                        <small>Total Revenue</small>
-                        <h2>₱<?= number_format($totalRevenue, 2) ?></h2>
-                    </div>
-                </div>
-            </div>
-
         </div>
 
 
@@ -357,37 +354,85 @@ $totalRevenue = $row['total'];
                 <h5 class="mb-0 fw-bold">Low Stock Alerts</h5>
             </div>
 
-            <div class="card-body p-0">
-                <table class="table mb-0 text-center">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Form</th>
-                            <th>Stock</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+            <div class="card-body p-3">
 
-                        <?php
-                        if ($lowStock->num_rows == 0) {
-                            echo "<tr><td colspan='3'>No low stock alerts</td></tr>";
-                        }
+                <div class="table-responsive">
+                    <table id="lowStockTable" class="table align-middle text-center custom-table">
 
-                        while ($r = $lowStock->fetch_assoc()) {
-                        ?>
+                        <thead>
                             <tr>
-                                <td><?= $r['form_name']; ?></td>
-                                <td><?= $r['current_stock']; ?></td>
-                                <td>
-                                    <span class="badge bg-danger">Low Stock</span>
-                                </td>
+                                <th class="text-start ps-4">Form</th>
+                                <th>Stock</th>
+                                <th>Status</th>
                             </tr>
-                        <?php } ?>
+                        </thead>
 
-                    </tbody>
-                </table>
+                        <tbody>
+
+                            <?php if ($lowStock->num_rows == 0) { ?>
+                                <tr>
+                                    <td colspan="3" class="text-muted py-3">No low stock alerts</td>
+                                </tr>
+                            <?php } ?>
+
+                            <?php while ($r = $lowStock->fetch_assoc()) { ?>
+                                <tr>
+
+                                    <td class="text-start ps-4 fw-semibold">
+                                        <?= htmlspecialchars($r['form_name']); ?>
+                                    </td>
+
+                                    <td class="fw-bold">
+                                        <?= $r['current_stock']; ?>
+                                    </td>
+
+                                    <td>
+                                        <?php
+                                        if ($r['current_stock'] <= 10) {
+                                            echo '<span class="badge bg-danger">Critical</span>';
+                                        } else {
+                                            echo '<span class="badge bg-warning text-dark">Warning</span>';
+                                        }
+                                        ?>
+                                    </td>
+
+                                </tr>
+                            <?php } ?>
+
+                        </tbody>
+
+                    </table>
+                </div>
+
             </div>
         </div>
+
+        <script>
+            $(document).ready(function() {
+
+                // MAIN TABLE
+                $('#formsTable').DataTable({
+                    pageLength: 10,
+                    responsive: true
+                });
+
+                // LOW STOCK TABLE
+                $('#lowStockTable').DataTable({
+                    pageLength: 5,
+                    lengthMenu: [5, 10, 20],
+                    searching: false, // optional: remove search kung gusto simple
+                    info: false, // hide "showing x entries"
+                    responsive: true,
+                    language: {
+                        paginate: {
+                            previous: "Prev",
+                            next: "Next"
+                        }
+                    }
+                });
+
+            });
+        </script>
 
 
         <!-- RECENT SALES -->
@@ -396,39 +441,76 @@ $totalRevenue = $row['total'];
                 <h5 class="mb-0 fw-bold">Recent Sales</h5>
             </div>
 
-            <div class="card-body p-0">
-                <table class="table mb-0 text-center">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Form</th>
-                            <th>Qty</th>
-                            <th>Amount</th>
-                            <th>Date</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+            <div class="card-body p-3">
 
-                        <?php
-                        if ($recentSales->num_rows == 0) {
-                            echo "<tr><td colspan='4'>No sales yet</td></tr>";
-                        }
+                <div class="table-responsive">
+                    <table class="table align-middle text-center custom-table">
 
-                        while ($sale = $recentSales->fetch_assoc()) {
-                        ?>
+                        <thead>
                             <tr>
-                                <td><?= $sale['form_name']; ?></td>
-                                <td><?= $sale['quantity_sold']; ?></td>
-                                <td>₱<?= number_format($sale['total_amount'], 2); ?></td>
-                                <td><?= $sale['date_sold']; ?></td>
+                                <th class="text-start ps-4">Form</th>
+                                <th>Qty</th>
+                                <th>Amount</th>
+                                <th>Date</th>
                             </tr>
-                        <?php } ?>
+                        </thead>
 
-                    </tbody>
-                </table>
+                        <tbody>
+
+                            <?php if ($recentSales->num_rows == 0) { ?>
+                                <tr>
+                                    <td colspan="4" class="text-muted py-3">No sales yet</td>
+                                </tr>
+                            <?php } ?>
+
+                            <?php while ($sale = $recentSales->fetch_assoc()) { ?>
+                                <tr>
+
+                                    <td class="text-start ps-4 fw-semibold">
+                                        <?= htmlspecialchars($sale['form_name']); ?>
+                                    </td>
+
+                                    <td><?= $sale['quantity_sold']; ?></td>
+
+                                    <td class="fw-bold text-success">
+                                        ₱<?= number_format($sale['total_amount'], 2); ?>
+                                    </td>
+
+                                    <td>
+                                        <?= date("M d, Y", strtotime($sale['date_sold'])); ?>
+                                    </td>
+
+                                </tr>
+                            <?php } ?>
+
+                        </tbody>
+
+                    </table>
+                </div>
+
             </div>
         </div>
 
     </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+    <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+
+    <script>
+        $(document).ready(function() {
+
+            $('#lowStockTable').DataTable({
+                pageLength: 5,
+                lengthChange: false,
+                searching: false,
+                info: false,
+                responsive: true
+            });
+
+        });
+    </script>
 
 </body>
 

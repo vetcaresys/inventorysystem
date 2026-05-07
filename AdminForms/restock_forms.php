@@ -251,40 +251,38 @@ function buildPageUrl($page, $search)
 
         <nav class="nav flex-column mt-4">
 
-            <a href="forms_dashboard.php"
-                class="nav-link">
+            <a href="forms_userprofile.php" class="nav-link">
+                <i class="bi bi-person-circle"></i> My Profile
+            </a>
+
+            <a href="forms_dashboard.php" class="nav-link">
                 <i class="bi bi-speedometer2"></i>
                 Dashboard
             </a>
 
-            <a href="forms_inventory.php"
-                class="nav-link">
+            <a href="forms_inventory.php" class="nav-link">
                 <i class="bi bi-file-earmark-text"></i>
                 Forms Inventory
             </a>
 
-            <a href="restock_forms.php"
-                class="nav-link active">
+            <a href="restock_forms.php" class="nav-link active">
                 <i class="bi bi-box-seam"></i>
                 Restock Forms
             </a>
 
-            <a href="sales.php"
-                class="nav-link">
+            <a href="sales.php" class="nav-link">
                 <i class="bi bi-cart-check"></i>
                 Sell Forms
             </a>
 
-            <a href="forms_reports.php"
-                class="nav-link">
+            <a href="forms_reports.php" class="nav-link">
                 <i class="bi bi-bar-chart-line"></i>
                 Reports
             </a>
 
             <hr>
 
-            <a href="../logout.php"
-                class="nav-link text-warning">
+            <a href="../logout.php" class="nav-link text-warning">
                 <i class="bi bi-box-arrow-left"></i>
                 Logout
             </a>

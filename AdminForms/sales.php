@@ -304,6 +304,10 @@ function buildPageUrl($page, $search)
 
         <nav class="nav flex-column mt-4">
 
+            <a href="forms_userprofile.php" class="nav-link">
+                <i class="bi bi-person-circle"></i> My Profile
+            </a>
+
             <a href="forms_dashboard.php" class="nav-link">
                 <i class="bi bi-speedometer2"></i>
                 Dashboard

@@ -65,9 +65,13 @@ FROM equipment_inventory
 WHERE quantity <= 2
 ");
 
+$limit = 5;
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$offset = ($page - 1) * $limit;
+$search = isset($_GET['search']) ? trim($_GET['search']) : "";
 
 // recent borrow transactions
-$recent = $conn->query("
+$sql = "
 SELECT
 e.description,
 b.quantity_borrowed,
@@ -75,10 +79,32 @@ b.borrow_date,
 b.status
 FROM borrow_records b
 JOIN equipment_inventory e
-ON b.item_id=e.item_id
-ORDER BY b.borrow_id DESC
-LIMIT 5
-");
+ON b.item_id = e.item_id
+";
+
+if ($search != "") {
+    $sql .= " WHERE e.description LIKE '%" . $conn->real_escape_string($search) . "%'";
+}
+
+$sql .= " ORDER BY b.borrow_id DESC LIMIT $limit OFFSET $offset";
+
+$recent = $conn->query($sql);
+
+$countSql = "
+SELECT COUNT(*) as total
+FROM borrow_records b
+JOIN equipment_inventory e
+ON b.item_id = e.item_id
+";
+
+if ($search != "") {
+    $countSql .= " WHERE e.description LIKE '%" . $conn->real_escape_string($search) . "%'";
+}
+
+$countResult = $conn->query($countSql);
+$totalRows = $countResult->fetch_assoc()['total'];
+
+$totalPages = ceil($totalRows / $limit);
 
 ?>
 
@@ -178,7 +204,7 @@ LIMIT 5
         <nav class="nav flex-column mt-4">
 
             <a href="userprofile.php" class="nav-link">
-                <i class="bi bi-person-circle"></i> 
+                <i class="bi bi-person-circle"></i>
                 User Profile
             </a>
 
@@ -246,209 +272,93 @@ LIMIT 5
                 Inventory Dashboard
             </h4>
 
-            <div class="d-flex align-items-center gap-4">
-
-                <!-- Notification Bell -->
-                <div class="dropdown">
-
-                    <button class="btn position-relative border-0 bg-transparent"
-                        data-bs-toggle="dropdown">
-
-                        <i class="bi bi-bell fs-4"></i>
-
-                        <span class="position-absolute top-0 start-100 translate-middle 
-                    badge rounded-pill bg-danger">
-                            3
-                        </span>
-
-                    </button>
-
-                    <ul class="dropdown-menu dropdown-menu-end shadow" style="width:320px;">
-
-                        <li class="dropdown-header fw-bold">
-                            Notifications
-                        </li>
-
-                        <li>
-                            <a class="dropdown-item" href="#">
-                                Low stock: Bond Paper
-                            </a>
-                        </li>
-
-                        <li>
-                            <a class="dropdown-item" href="#">
-                                Laptop returned today
-                            </a>
-                        </li>
-
-                        <li>
-                            <a class="dropdown-item" href="#">
-                                New borrow request
-                            </a>
-                        </li>
-
-                    </ul>
-
-                </div>
-
-
-                <!-- User Profile -->
-                <div class="dropdown">
-
-                    <button class="btn d-flex align-items-center gap-2 border-0 bg-transparent"
-                        data-bs-toggle="dropdown">
-
-                        <img src="../uploads/default.png"
-                            width="40"
-                            height="40"
-                            class="rounded-circle">
-
-                        <div class="text-start">
-                            <div class="fw-semibold">
-                                <?= $_SESSION['fullname']; ?>
-                            </div>
-                            <small class="text-muted">
-                                Inventory Admin
-                            </small>
-                        </div>
-
-                        <i class="bi bi-chevron-down"></i>
-
-                    </button>
-
-
-                    <ul class="dropdown-menu dropdown-menu-end shadow">
-
-                        <li>
-                            <a class="dropdown-item" href="profile.php">
-                                <i class="bi bi-person-circle"></i>
-                                My Profile
-                            </a>
-                        </li>
-
-                        <li>
-                            <a class="dropdown-item" href="settings.php">
-                                <i class="bi bi-gear"></i>
-                                Settings
-                            </a>
-                        </li>
-
-                        <li>
-                            <hr class="dropdown-divider">
-                        </li>
-
-                        <li>
-                            <a class="dropdown-item text-danger"
-                                href="../logout.php">
-                                <i class="bi bi-box-arrow-right"></i>
-                                Logout
-                            </a>
-                        </li>
-
-                    </ul>
-
-                </div>
-
-            </div>
-
         </nav>
-
 
 
         <!-- STAT CARDS -->
         <div class="row g-4">
 
+            <!-- ASSET RECORDS -->
             <div class="col-md-3">
-                <div class="card card-stat p-4">
-                    <small class="text-muted">
-                        Asset Records
-                    </small>
-
-                    <h2>
-                        <?= $totalItems ?>
-                    </h2>
-
+                <div class="card text-white p-4 bg-primary shadow-sm rounded-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small>Asset Records</small>
+                            <h2 class="fw-bold mb-0"><?= $totalItems ?></h2>
+                        </div>
+                        <i class="bi bi-box-seam fs-1 opacity-75"></i>
+                    </div>
                 </div>
             </div>
 
-
-
+            <!-- TOTAL QUANTITY -->
             <div class="col-md-3">
-                <div class="card card-stat p-4">
-                    <small class="text-muted">
-                        Total Quantity
-                    </small>
-
-                    <h2>
-                        <?= $totalQty ?>
-                    </h2>
-
+                <div class="card text-white p-4 bg-success shadow-sm rounded-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small>Total Quantity</small>
+                            <h2 class="fw-bold mb-0"><?= $totalQty ?></h2>
+                        </div>
+                        <i class="bi bi-collection fs-1 opacity-75"></i>
+                    </div>
                 </div>
             </div>
 
-
-
+            <!-- BORROWED ITEMS -->
             <div class="col-md-3">
-                <div class="card card-stat p-4">
-                    <small class="text-muted">
-                        Borrowed Items
-                    </small>
-
-                    <h2>
-                        <?= $totalBorrowed ?>
-                    </h2>
-
+                <div class="card text-white p-4 bg-warning shadow-sm rounded-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small>Borrowed Items</small>
+                            <h2 class="fw-bold mb-0"><?= $totalBorrowed ?></h2>
+                        </div>
+                        <i class="bi bi-arrow-up-circle fs-1 opacity-75"></i>
+                    </div>
                 </div>
             </div>
 
-
-
+            <!-- RETURNED ITEMS -->
             <div class="col-md-3">
-                <div class="card card-stat p-4">
-                    <small class="text-muted">
-                        Returned Items
-                    </small>
-
-                    <h2>
-                        <?= $totalReturned ?>
-                    </h2>
-
+                <div class="card text-white p-4 bg-danger shadow-sm rounded-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small>Returned Items</small>
+                            <h2 class="fw-bold mb-0"><?= $totalReturned ?></h2>
+                        </div>
+                        <i class="bi bi-arrow-down-circle fs-1 opacity-75"></i>
+                    </div>
                 </div>
             </div>
 
         </div>
 
 
-
-
+        <!-- SECOND ROW -->
         <div class="row g-4 mt-1">
 
+            <!-- DEVICES -->
             <div class="col-md-6">
-                <div class="card card-stat p-4">
-
-                    <small class="text-muted">
-                        Devices Registered
-                    </small>
-
-                    <h2>
-                        <?= $totalDevices ?>
-                    </h2>
-
+                <div class="card text-white p-4 bg-info shadow-sm rounded-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small>Devices Registered</small>
+                            <h2 class="fw-bold mb-0"><?= $totalDevices ?></h2>
+                        </div>
+                        <i class="bi bi-phone fs-1 opacity-75"></i>
+                    </div>
                 </div>
             </div>
 
-
+            <!-- LOW ASSETS -->
             <div class="col-md-6">
-                <div class="card card-stat p-4">
-
-                    <small class="text-muted">
-                        Low Quantity Assets
-                    </small>
-
-                    <h2>
-                        <?= $lowAssets->num_rows ?>
-                    </h2>
-
+                <div class="card text-white p-4 bg-dark shadow-sm rounded-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small>Low Quantity Assets</small>
+                            <h2 class="fw-bold mb-0"><?= $lowAssets->num_rows ?></h2>
+                        </div>
+                        <i class="bi bi-exclamation-triangle fs-1 opacity-75"></i>
+                    </div>
                 </div>
             </div>
 
@@ -507,16 +417,33 @@ LIMIT 5
         </div>
 
 
-
-
         <!-- RECENT BORROW RECORDS -->
         <div class="card shadow-sm border-0 rounded-4">
 
-            <div class="card-header bg-white">
+            <div class="d-flex justify-content-between align-items-center p-3">
+
+                <!-- LEFT: TITLE -->
                 <h5 class="fw-bold mb-0">
                     Recent Borrow Records
                 </h5>
+
+                <!-- RIGHT: SEARCH -->
+                <form method="GET" class="d-flex gap-2" style="max-width: 300px;">
+
+                    <input type="text"
+                        name="search"
+                        class="form-control form-control-sm"
+                        placeholder="Search item..."
+                        value="<?= htmlspecialchars($search) ?>">
+
+                    <button class="btn btn-primary btn-sm">
+                        <i class="bi bi-search"></i>
+                    </button>
+
+                </form>
+
             </div>
+
 
             <div class="card-body p-0">
 
@@ -536,11 +463,11 @@ LIMIT 5
                         <?php
                         if ($recent->num_rows == 0) {
                             echo "
-<tr>
-<td colspan='4'>
-No records yet
-</td>
-</tr>";
+                            <tr>
+                            <td colspan='4'>
+                            No records yet
+                            </td>
+                            </tr>";
                         }
 
                         while ($r = $recent->fetch_assoc()) {
@@ -579,6 +506,32 @@ No records yet
                     </tbody>
 
                 </table>
+
+                <div class="p-3 d-flex justify-content-between align-items-center">
+
+                    <small class="text-muted">
+                        Page <?= $page ?> of <?= $totalPages ?>
+                    </small>
+
+                    <div>
+
+                        <?php if ($page > 1): ?>
+                            <a href="?page=<?= $page - 1 ?>&search=<?= $search ?>"
+                                class="btn btn-sm btn-outline-primary">
+                                Prev
+                            </a>
+                        <?php endif; ?>
+
+                        <?php if ($page < $totalPages): ?>
+                            <a href="?page=<?= $page + 1 ?>&search=<?= $search ?>"
+                                class="btn btn-sm btn-primary">
+                                Next
+                            </a>
+                        <?php endif; ?>
+
+                    </div>
+
+                </div>
 
             </div>
         </div>
