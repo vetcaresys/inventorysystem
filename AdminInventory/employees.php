@@ -233,42 +233,41 @@ $employees = $conn->query("
         <nav class="nav flex-column mt-4">
 
             <a href="userprofile.php" class="nav-link">
-                <i class="bi bi-person-circle"></i> 
+                <i class="bi bi-person-circle"></i>
                 User Profile
             </a>
 
-            <a href="inventory_dashboard.php"
-                class="nav-link">
+            <a href="inventory_dashboard.php" class="nav-link">
                 <i class="bi bi-speedometer2"></i>
                 Dashboard
             </a>
 
-            <a href="employees.php"
-                class="nav-link active">
+            <a href="employees.php" class="nav-link active">
                 <i class="bi bi-people"></i>
                 Employees
             </a>
 
-            <a href="inventory_items.php"
-                class="nav-link">
+            <a href="receiving_batches.php" class="nav-link">
+                <i class="bi bi-box-arrow-in-down"></i>
+                Receiving Batches
+            </a>
+
+            <a href="inventory_items.php" class="nav-link">
                 <i class="bi bi-box-seam"></i>
                 Inventory Items
             </a>
 
-            <a href="borrow_records.php"
-                class="nav-link">
+            <a href="borrow_records.php" class="nav-link">
                 <i class="bi bi-journal-arrow-up"></i>
                 Borrow Records
             </a>
 
-            <a href="return_records.php"
-                class="nav-link">
+            <a href="return_records.php" class="nav-link">
                 <i class="bi bi-journal-arrow-down"></i>
                 Return Records
             </a>
 
-            <a href="inventory_reports.php"
-                class="nav-link">
+            <a href="inventory_reports.php" class="nav-link">
                 <i class="bi bi-bar-chart-line"></i>
                 Reports
             </a>
@@ -280,8 +279,7 @@ $employees = $conn->query("
 
             <hr>
 
-            <a href="../logout.php"
-                class="nav-link text-warning">
+            <a href="../logout.php" class="nav-link text-warning">
                 <i class="bi bi-box-arrow-left"></i>
                 Logout
             </a>
@@ -327,20 +325,13 @@ $employees = $conn->query("
                             <option value="other">Other (Specify)</option>
                         </select>
 
-                        <input type="text" name="custom_position" id="customPosition"
-                            class="form-control mt-2"
-                            placeholder="Enter position"
-                            style="display:none;">
+                        <input type="text" name="custom_position" id="customPosition" class="form-control mt-2"
+                            placeholder="Enter position" style="display:none;">
                     </div>
 
                     <div class="col-md-2">
-                        <input type="text"
-                            name="contact_no"
-                            class="form-control"
-                            placeholder="Contact No"
-                            maxlength="11"
-                            inputmode="numeric"
-                            required>
+                        <input type="text" name="contact_no" class="form-control" placeholder="Contact No"
+                            maxlength="11" inputmode="numeric" required>
                     </div>
 
                 </div>
@@ -362,11 +353,7 @@ $employees = $conn->query("
                 <h5 class="mb-0">Employee List</h5>
 
                 <div style="width:300px;">
-                    <input
-                        type="text"
-                        id="searchEmployee"
-                        class="form-control"
-                        placeholder="Search employee...">
+                    <input type="text" id="searchEmployee" class="form-control" placeholder="Search employee...">
                 </div>
 
             </div>
@@ -393,15 +380,13 @@ $employees = $conn->query("
 
                             <td>
                                 <!-- VIEW -->
-                                <button class="btn btn-info btn-sm"
-                                    data-bs-toggle="modal"
+                                <button class="btn btn-info btn-sm" data-bs-toggle="modal"
                                     data-bs-target="#viewModal<?= $e['employee_id']; ?>">
                                     View
                                 </button>
 
                                 <!-- EDIT -->
-                                <button class="btn btn-warning btn-sm"
-                                    data-bs-toggle="modal"
+                                <button class="btn btn-warning btn-sm" data-bs-toggle="modal"
                                     data-bs-target="#editModal<?= $e['employee_id']; ?>">
                                     Edit
                                 </button>
@@ -527,7 +512,7 @@ $employees = $conn->query("
             </div>
 
             <script>
-                document.addEventListener("DOMContentLoaded", function() {
+                document.addEventListener("DOMContentLoaded", function () {
 
                     let rows = document.querySelectorAll(".employee-row");
                     let perPage = 5;
@@ -557,14 +542,14 @@ $employees = $conn->query("
                         nextBtn.style.pointerEvents = (page === totalPages) ? "none" : "auto";
                     }
 
-                    prevBtn.addEventListener("click", function() {
+                    prevBtn.addEventListener("click", function () {
                         if (currentPage > 1) {
                             currentPage--;
                             showPage(currentPage);
                         }
                     });
 
-                    nextBtn.addEventListener("click", function() {
+                    nextBtn.addEventListener("click", function () {
                         if (currentPage < totalPages) {
                             currentPage++;
                             showPage(currentPage);
@@ -590,13 +575,13 @@ $employees = $conn->query("
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
-        document.getElementById('searchEmployee').addEventListener('keyup', function() {
+        document.getElementById('searchEmployee').addEventListener('keyup', function () {
 
             let value = this.value.toLowerCase();
             let rows = document.querySelectorAll("#employeeTable tbody tr");
             let found = false;
 
-            rows.forEach(function(row) {
+            rows.forEach(function (row) {
 
                 if (row.id === "noResultRow") return;
 
@@ -662,13 +647,13 @@ $employees = $conn->query("
         const contactInput = document.querySelector("input[name='contact_no']");
 
         // block non-numbers while typing
-        contactInput.addEventListener("input", function() {
+        contactInput.addEventListener("input", function () {
             this.value = this.value.replace(/[^0-9]/g, '');
         });
     </script>
 
     <script>
-        document.querySelector("form").addEventListener("submit", function(e) {
+        document.querySelector("form").addEventListener("submit", function (e) {
 
             let contact = document.querySelector("input[name='contact_no']").value;
 
@@ -689,7 +674,7 @@ $employees = $conn->query("
     </script>
 
     <script>
-        document.getElementById("positionSelect").addEventListener("change", function() {
+        document.getElementById("positionSelect").addEventListener("change", function () {
 
             let custom = document.getElementById("customPosition");
 

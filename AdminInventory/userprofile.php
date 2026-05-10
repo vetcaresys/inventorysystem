@@ -112,52 +112,49 @@ if ($imgFile && file_exists($imgPath)) {
                 User Profile
             </a>
 
-            <a href="inventory_dashboard.php"
-                class="nav-link">
+            <a href="inventory_dashboard.php" class="nav-link">
                 <i class="bi bi-speedometer2"></i>
                 Dashboard
             </a>
 
-            <a href="employees.php"
-                class="nav-link">
+            <a href="employees.php" class="nav-link">
                 <i class="bi bi-people"></i>
                 Employees
             </a>
 
-            <a href="inventory_items.php"
-                class="nav-link">
+            <a href="receiving_batches.php" class="nav-link">
+                <i class="bi bi-box-arrow-in-down"></i>
+                Receiving Batches
+            </a>
+
+            <a href="inventory_items.php" class="nav-link">
                 <i class="bi bi-box-seam"></i>
                 Inventory Items
             </a>
 
-            <a href="borrow_records.php"
-                class="nav-link">
+            <a href="borrow_records.php" class="nav-link">
                 <i class="bi bi-journal-arrow-up"></i>
                 Borrow Records
             </a>
 
-            <a href="return_records.php"
-                class="nav-link">
+            <a href="return_records.php" class="nav-link">
                 <i class="bi bi-journal-arrow-down"></i>
                 Return Records
             </a>
 
-            <a href="inventory_reports.php"
-                class="nav-link">
+            <a href="inventory_reports.php" class="nav-link">
                 <i class="bi bi-bar-chart-line"></i>
                 Reports
             </a>
 
-            <a href="backup_restore.php"
-                class="nav-link">
+            <a href="backup_restore.php" class="nav-link">
                 <i class="bi bi-database-fill-gear"></i>
                 Backup & Restore
             </a>
 
             <hr>
 
-            <a href="../logout.php"
-                class="nav-link text-warning">
+            <a href="../logout.php" class="nav-link text-warning">
                 <i class="bi bi-box-arrow-left"></i>
                 Logout
             </a>
@@ -214,9 +211,7 @@ if ($imgFile && file_exists($imgPath)) {
                     <p><i class="bi bi-envelope"></i> <?= $user['email'] ?? 'No email'; ?></p>
                     <p><i class="bi bi-telephone"></i> <?= $user['contact_no'] ?? 'No contact'; ?></p>
 
-                    <button class="btn btn-primary w-100 mt-3"
-                        data-bs-toggle="modal"
-                        data-bs-target="#editModal">
+                    <button class="btn btn-primary w-100 mt-3" data-bs-toggle="modal" data-bs-target="#editModal">
                         Edit Profile
                     </button>
 
@@ -285,17 +280,15 @@ if ($imgFile && file_exists($imgPath)) {
 
                     <div class="modal-body">
 
-                        <input type="text" name="fullname" class="form-control mb-2"
-                            value="<?= $user['fullname']; ?>" required>
+                        <input type="text" name="fullname" class="form-control mb-2" value="<?= $user['fullname']; ?>"
+                            required>
 
-                        <input type="email" name="email" class="form-control mb-2"
-                            value="<?= $user['email']; ?>">
+                        <input type="email" name="email" class="form-control mb-2" value="<?= $user['email']; ?>">
 
                         <input type="text" name="contact_no" class="form-control mb-2"
                             value="<?= $user['contact_no']; ?>">
 
-                        <input type="text" name="position" class="form-control mb-2"
-                            value="<?= $user['position']; ?>">
+                        <input type="text" name="position" class="form-control mb-2" value="<?= $user['position']; ?>">
 
                         <input type="text" name="office_unit" class="form-control mb-2"
                             value="<?= $user['office_unit']; ?>">

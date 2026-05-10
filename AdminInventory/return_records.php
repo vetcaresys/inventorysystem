@@ -190,6 +190,11 @@ ORDER BY r.return_id DESC
                 <i class="bi bi-people"></i> Employees
             </a>
 
+            <a href="receiving_batches.php" class="nav-link">
+                <i class="bi bi-box-arrow-in-down"></i>
+                Receiving Batches
+            </a>
+
             <a href="inventory_items.php" class="nav-link">
                 <i class="bi bi-box-seam"></i> Inventory Items
             </a>

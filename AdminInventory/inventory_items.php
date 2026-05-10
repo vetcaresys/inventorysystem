@@ -262,9 +262,9 @@ $items = $conn->query("
                 Employees
             </a>
 
-            <a href="receivers.php" class="nav-link">
-                <i class="bi bi-person-badge"></i>
-                Receivers
+            <a href="receiving_batches.php" class="nav-link">
+                <i class="bi bi-box-arrow-in-down"></i>
+                Receiving Batches
             </a>
 
             <a href="inventory_items.php" class="nav-link active">

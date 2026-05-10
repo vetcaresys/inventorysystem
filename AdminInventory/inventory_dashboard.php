@@ -66,7 +66,7 @@ WHERE quantity <= 2
 ");
 
 $limit = 5;
-$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
 $offset = ($page - 1) * $limit;
 $search = isset($_GET['search']) ? trim($_GET['search']) : "";
 
@@ -113,16 +113,13 @@ $totalPages = ceil($totalRows / $limit);
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport"
-        content="width=device-width,initial-scale=1">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
 
     <title>Inventory Dashboard</title>
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
-        rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css"
-        rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
 
     <style>
         body {
@@ -208,38 +205,37 @@ $totalPages = ceil($totalRows / $limit);
                 User Profile
             </a>
 
-            <a href="inventory_dashboard.php"
-                class="nav-link active">
+            <a href="inventory_dashboard.php" class="nav-link active">
                 <i class="bi bi-speedometer2"></i>
                 Dashboard
             </a>
 
-            <a href="employees.php"
-                class="nav-link">
+            <a href="employees.php" class="nav-link">
                 <i class="bi bi-people"></i>
                 Employees
             </a>
 
-            <a href="inventory_items.php"
-                class="nav-link">
+            <a href="receiving_batches.php" class="nav-link">
+                <i class="bi bi-box-arrow-in-down"></i>
+                Receiving Batches
+            </a>
+
+            <a href="inventory_items.php" class="nav-link">
                 <i class="bi bi-box-seam"></i>
                 Inventory Items
             </a>
 
-            <a href="borrow_records.php"
-                class="nav-link">
+            <a href="borrow_records.php" class="nav-link">
                 <i class="bi bi-journal-arrow-up"></i>
                 Borrow Records
             </a>
 
-            <a href="return_records.php"
-                class="nav-link">
+            <a href="return_records.php" class="nav-link">
                 <i class="bi bi-journal-arrow-down"></i>
                 Return Records
             </a>
 
-            <a href="inventory_reports.php"
-                class="nav-link">
+            <a href="inventory_reports.php" class="nav-link">
                 <i class="bi bi-bar-chart-line"></i>
                 Reports
             </a>
@@ -251,8 +247,7 @@ $totalPages = ceil($totalRows / $limit);
 
             <hr>
 
-            <a href="../logout.php"
-                class="nav-link text-warning">
+            <a href="../logout.php" class="nav-link text-warning">
                 <i class="bi bi-box-arrow-left"></i>
                 Logout
             </a>
@@ -374,8 +369,7 @@ $totalPages = ceil($totalRows / $limit);
         <div class="row g-4 mb-5">
 
             <div class="col-md-4">
-                <a href="inventory_items.php"
-                    class="quick-btn">
+                <a href="inventory_items.php" class="quick-btn">
 
                     <h5>Add Equipment</h5>
 
@@ -388,8 +382,7 @@ $totalPages = ceil($totalRows / $limit);
 
 
             <div class="col-md-4">
-                <a href="borrow_records.php"
-                    class="quick-btn">
+                <a href="borrow_records.php" class="quick-btn">
 
                     <h5>Borrow Device</h5>
 
@@ -402,8 +395,7 @@ $totalPages = ceil($totalRows / $limit);
 
 
             <div class="col-md-4">
-                <a href="return_records.php"
-                    class="quick-btn">
+                <a href="return_records.php" class="quick-btn">
 
                     <h5>Return Device</h5>
 
@@ -430,10 +422,7 @@ $totalPages = ceil($totalRows / $limit);
                 <!-- RIGHT: SEARCH -->
                 <form method="GET" class="d-flex gap-2" style="max-width: 300px;">
 
-                    <input type="text"
-                        name="search"
-                        class="form-control form-control-sm"
-                        placeholder="Search item..."
+                    <input type="text" name="search" class="form-control form-control-sm" placeholder="Search item..."
                         value="<?= htmlspecialchars($search) ?>">
 
                     <button class="btn btn-primary btn-sm">
@@ -471,7 +460,7 @@ $totalPages = ceil($totalRows / $limit);
                         }
 
                         while ($r = $recent->fetch_assoc()) {
-                        ?>
+                            ?>
 
                             <tr>
 
@@ -516,15 +505,13 @@ $totalPages = ceil($totalRows / $limit);
                     <div>
 
                         <?php if ($page > 1): ?>
-                            <a href="?page=<?= $page - 1 ?>&search=<?= $search ?>"
-                                class="btn btn-sm btn-outline-primary">
+                            <a href="?page=<?= $page - 1 ?>&search=<?= $search ?>" class="btn btn-sm btn-outline-primary">
                                 Prev
                             </a>
                         <?php endif; ?>
 
                         <?php if ($page < $totalPages): ?>
-                            <a href="?page=<?= $page + 1 ?>&search=<?= $search ?>"
-                                class="btn btn-sm btn-primary">
+                            <a href="?page=<?= $page + 1 ?>&search=<?= $search ?>" class="btn btn-sm btn-primary">
                                 Next
                             </a>
                         <?php endif; ?>

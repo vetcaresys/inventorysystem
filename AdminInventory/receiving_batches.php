@@ -128,15 +128,37 @@ if (isset($_POST['add_batch'])) {
 
     $receiver_id = $_POST['receiver_id'];
     $received_date = $_POST['received_date'];
-    $remarks = $_POST['remarks'];
+    $remarks = trim($_POST['remarks']);
 
     $attachment1 = "";
     $attachment2 = "";
 
+    $allowed = ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx'];
+
+    /* VALIDATE REQUIRED FIELDS */
+    if (empty($receiver_id) || empty($received_date)) {
+
+        header("Location: receiving_batches.php?error=1");
+        exit;
+    }
+
     /* ATTACHMENT 1 */
     if (!empty($_FILES['attachment1']['name'])) {
 
-        $attachment1 = time() . "_" . $_FILES['attachment1']['name'];
+        $ext1 = strtolower(pathinfo(
+            $_FILES['attachment1']['name'],
+            PATHINFO_EXTENSION
+        ));
+
+        if (!in_array($ext1, $allowed)) {
+
+            header("Location: receiving_batches.php?invalid_file=1");
+            exit;
+        }
+
+        $attachment1 =
+            time() . "_1_" .
+            basename($_FILES['attachment1']['name']);
 
         move_uploaded_file(
             $_FILES['attachment1']['tmp_name'],
@@ -147,7 +169,20 @@ if (isset($_POST['add_batch'])) {
     /* ATTACHMENT 2 */
     if (!empty($_FILES['attachment2']['name'])) {
 
-        $attachment2 = time() . "_" . $_FILES['attachment2']['name'];
+        $ext2 = strtolower(pathinfo(
+            $_FILES['attachment2']['name'],
+            PATHINFO_EXTENSION
+        ));
+
+        if (!in_array($ext2, $allowed)) {
+
+            header("Location: receiving_batches.php?invalid_file=1");
+            exit;
+        }
+
+        $attachment2 =
+            time() . "_2_" .
+            basename($_FILES['attachment2']['name']);
 
         move_uploaded_file(
             $_FILES['attachment2']['tmp_name'],
@@ -357,14 +392,19 @@ $batches = $conn->query("
 
         <nav class="nav flex-column mt-4">
 
+            <a href="userprofile.php" class="nav-link">
+                <i class="bi bi-person-circle"></i>
+                User Profile
+            </a>
+
             <a href="inventory_dashboard.php" class="nav-link">
                 <i class="bi bi-speedometer2"></i>
                 Dashboard
             </a>
 
-            <a href="receivers.php" class="nav-link">
-                <i class="bi bi-person-badge"></i>
-                Receivers
+            <a href="employees.php" class="nav-link">
+                <i class="bi bi-people"></i>
+                Employees
             </a>
 
             <a href="receiving_batches.php" class="nav-link active">
@@ -375,6 +415,26 @@ $batches = $conn->query("
             <a href="inventory_items.php" class="nav-link">
                 <i class="bi bi-box-seam"></i>
                 Inventory Items
+            </a>
+
+            <a href="borrow_records.php" class="nav-link">
+                <i class="bi bi-journal-arrow-up"></i>
+                Borrow Records
+            </a>
+
+            <a href="return_records.php" class="nav-link">
+                <i class="bi bi-journal-arrow-down"></i>
+                Return Records
+            </a>
+
+            <a href="inventory_reports.php" class="nav-link">
+                <i class="bi bi-bar-chart-line"></i>
+                Reports
+            </a>
+
+            <a href="backup_restore.php" class="nav-link">
+                <i class="bi bi-database-fill-gear"></i>
+                Backup & Restore
             </a>
 
             <hr>
@@ -418,7 +478,8 @@ $batches = $conn->query("
             </div>
 
         </div>
-        <!-- ADD FORM -->
+
+        <!-- ADD RECEIVING BATCH FORM -->
         <div class="card card-custom p-4 mb-4">
 
             <h5 class="mb-3">
@@ -467,7 +528,8 @@ $batches = $conn->query("
                             Received Date
                         </label>
 
-                        <input type="date" name="received_date" class="form-control" required>
+                        <input type="date" name="received_date" class="form-control" max="<?= date('Y-m-d'); ?>"
+                            required>
 
                     </div>
 
@@ -487,7 +549,8 @@ $batches = $conn->query("
                             Attachment 1
                         </label>
 
-                        <input type="file" name="attachment1" class="form-control">
+                        <input type="file" name="attachment1" class="form-control"
+                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
 
                     </div>
 
@@ -573,16 +636,18 @@ $batches = $conn->query("
                                 </button>
 
                                 <!-- EDIT -->
-                                <button class="btn btn-warning btn-sm" data-bs-toggle="modal"
-                                    data-bs-target="#editModal<?= $row['batch_id']; ?>">
+                                <button class="btn btn-warning btn-sm editBatchBtn" data-bs-toggle="modal"
+                                    data-bs-target="#editBatchModal" data-id="<?= $row['batch_id']; ?>"
+                                    data-receiver="<?= $row['receiver_id']; ?>" data-date="<?= $row['received_date']; ?>"
+                                    data-remarks="<?= $row['remarks']; ?>">
                                     Edit
                                 </button>
 
                                 <!-- DELETE -->
-                                <a href="?delete=<?= $row['batch_id']; ?>" class="btn btn-danger btn-sm"
+                                <!-- <a href="?delete=<?= $row['batch_id']; ?>" class="btn btn-danger btn-sm"
                                     onclick="return confirm('Delete batch?')">
                                     Delete
-                                </a>
+                                </a> -->
 
                             </td>
 
@@ -593,6 +658,120 @@ $batches = $conn->query("
                 </tbody>
 
             </table>
+
+            <nav class="mt-3">
+                <ul class="pagination justify-content-left" id="receiverPagination"></ul>
+            </nav>
+
+        </div>
+
+    </div>
+
+    <!-- EDIT BATCH MODAL -->
+    <div class="modal fade" id="editBatchModal" tabindex="-1">
+
+        <div class="modal-dialog">
+
+            <div class="modal-content">
+
+                <form method="POST" enctype="multipart/form-data">
+
+                    <div class="modal-header bg-warning">
+
+                        <h5 class="modal-title">
+                            Update Batch
+                        </h5>
+
+                        <button class="btn-close" data-bs-dismiss="modal"></button>
+
+                    </div>
+
+                    <div class="modal-body">
+
+                        <input type="hidden" name="batch_id" id="edit_batch_id">
+
+                        <!-- RECEIVER -->
+                        <label class="form-label">
+                            Receiver
+                        </label>
+
+                        <select name="receiver_id" id="edit_batch_receiver" class="form-control mb-2" required>
+
+                            <option value="">
+                                Select Receiver
+                            </option>
+
+                            <?php
+                            $receivers = $conn->query("
+                            SELECT *
+                            FROM receivers
+                            ORDER BY name ASC
+                        ");
+
+                            while ($r = $receivers->fetch_assoc()) {
+                                ?>
+
+                                <option value="<?= $r['receiver_id']; ?>">
+                                    <?= $r['name']; ?>
+                                </option>
+
+                            <?php } ?>
+
+                        </select>
+
+                        <!-- RECEIVED DATE -->
+                        <label class="form-label">
+                            Received Date
+                        </label>
+
+                        <input type="date" name="received_date" id="edit_batch_date" class="form-control mb-2"
+                            max="<?= date('Y-m-d'); ?>" required>
+
+                        <!-- REMARKS -->
+                        <label class="form-label">
+                            Remarks
+                        </label>
+
+                        <input type="text" name="remarks" id="edit_batch_remarks" class="form-control mb-2"
+                            placeholder="Enter remarks" maxlength="255">
+
+                        <!-- ATTACHMENT 1 -->
+                        <label class="form-label">
+                            Attachment 1
+                        </label>
+
+                        <input type="file" name="attachment1" class="form-control mb-2"
+                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+
+                        <!-- ATTACHMENT 2 -->
+                        <label class="form-label">
+                            Attachment 2
+                        </label>
+
+                        <input type="file" name="attachment2" class="form-control"
+                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+
+                        <small class="text-muted">
+                            Leave this field empty if you don’t want to change the file.
+                        </small>
+
+                    </div>
+
+                    <div class="modal-footer">
+
+                        <button class="btn btn-secondary" data-bs-dismiss="modal">
+                            Cancel
+                        </button>
+
+                        <button name="update_batch" class="btn btn-primary">
+                            Update Batch
+                        </button>
+
+                    </div>
+
+                </form>
+
+            </div>
 
         </div>
 
@@ -666,6 +845,7 @@ $batches = $conn->query("
 
     </div>
 
+    <!-- ADD RECEIVER MODAL -->
     <div class="modal fade" id="addReceiverModal" tabindex="-1">
 
         <div class="modal-dialog">
@@ -686,14 +866,42 @@ $batches = $conn->query("
 
                     <div class="modal-body">
 
-                        <input type="text" name="name" class="form-control mb-2" placeholder="Name" required>
+                        <!-- NAME -->
+                        <label class="form-label">
+                            Name
+                        </label>
 
-                        <input type="text" name="office_unit" class="form-control mb-2" placeholder="Office Unit"
-                            required>
+                        <input type="text" name="name" class="form-control mb-2" placeholder="Enter full name"
+                            minlength="3" maxlength="100" pattern="[A-Za-zÑñ.\- ]+"
+                            title="Name should contain letters only." required>
 
-                        <input type="text" name="position" class="form-control mb-2" placeholder="Position" required>
+                        <!-- OFFICE UNIT -->
+                        <label class="form-label">
+                            Office Unit
+                        </label>
 
-                        <input type="text" name="contact_no" class="form-control" placeholder="Contact No" required>
+                        <input type="text" name="office_unit" class="form-control mb-2" placeholder="Enter office unit"
+                            minlength="2" maxlength="100" required>
+
+                        <!-- POSITION -->
+                        <label class="form-label">
+                            Position
+                        </label>
+
+                        <input type="text" name="position" class="form-control mb-2" placeholder="Enter position"
+                            minlength="2" maxlength="100" required>
+
+                        <!-- CONTACT -->
+                        <label class="form-label">
+                            Contact No
+                        </label>
+
+                        <input type="number" name="contact_no" class="form-control" placeholder="09XXXXXXXXX" min="0"
+                            oninput="if(this.value.length > 11) this.value = this.value.slice(0,11)" required>
+
+                        <small class="text-muted">
+                            Enter an 11-digit mobile number.
+                        </small>
 
                     </div>
 
@@ -704,9 +912,7 @@ $batches = $conn->query("
                         </button>
 
                         <button name="add_receiver" class="btn btn-primary">
-
                             Save Receiver
-
                         </button>
 
                     </div>
@@ -719,6 +925,7 @@ $batches = $conn->query("
 
     </div>
 
+    <!-- RECEIVER TABLE MODAL -->
     <div class="modal fade" id="manageReceiversModal" tabindex="-1">
         <div class="modal-dialog modal-xl modal-dialog-scrollable">
             <div class="modal-content">
@@ -781,40 +988,87 @@ $batches = $conn->query("
         </div>
     </div>
 
+    <!-- UPDATE MODAL RECEIVER -->
     <div class="modal fade" id="editReceiverModal" tabindex="-1">
+
         <div class="modal-dialog">
+
             <div class="modal-content">
 
                 <form method="POST">
 
                     <div class="modal-header bg-warning">
-                        <h5 class="modal-title">Update Receiver</h5>
+
+                        <h5 class="modal-title">
+                            Update Receiver
+                        </h5>
+
                         <button class="btn-close" data-bs-dismiss="modal"></button>
+
                     </div>
 
                     <div class="modal-body">
 
                         <input type="hidden" name="receiver_id" id="edit_id">
 
-                        <input type="text" name="name" id="edit_name" class="form-control mb-2" required>
+                        <!-- NAME -->
+                        <label class="form-label">
+                            Name
+                        </label>
 
-                        <input type="text" name="office_unit" id="edit_office" class="form-control mb-2" required>
+                        <input type="text" name="name" id="edit_name" class="form-control mb-2" minlength="3"
+                            maxlength="100" pattern="[A-Za-zÑñ.\- ]+" title="Name should contain letters only."
+                            required>
 
-                        <input type="text" name="position" id="edit_position" class="form-control mb-2" required>
+                        <!-- OFFICE UNIT -->
+                        <label class="form-label">
+                            Office Unit
+                        </label>
 
-                        <input type="text" name="contact_no" id="edit_contact" class="form-control" required>
+                        <input type="text" name="office_unit" id="edit_office" class="form-control mb-2" minlength="2"
+                            maxlength="100" required>
+
+                        <!-- POSITION -->
+                        <label class="form-label">
+                            Position
+                        </label>
+
+                        <input type="text" name="position" id="edit_position" class="form-control mb-2" minlength="2"
+                            maxlength="100" required>
+
+                        <!-- CONTACT -->
+                        <label class="form-label">
+                            Contact No
+                        </label>
+
+                        <input type="number" name="contact_no" id="edit_contact" class="form-control"
+                            placeholder="09XXXXXXXXX" min="0"
+                            oninput="if(this.value.length > 11) this.value = this.value.slice(0,11)" required>
+
+                        <small class="text-muted">
+                            Enter an 11-digit mobile number.
+                        </small>
 
                     </div>
 
                     <div class="modal-footer">
-                        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button name="update_receiver" class="btn btn-primary">Update</button>
+
+                        <button class="btn btn-secondary" data-bs-dismiss="modal">
+                            Cancel
+                        </button>
+
+                        <button name="update_receiver" class="btn btn-primary">
+                            Update
+                        </button>
+
                     </div>
 
                 </form>
 
             </div>
+
         </div>
+
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -1031,6 +1285,30 @@ $batches = $conn->query("
         });
     </script>
 
+    <script>
+        document.querySelectorAll('.editBatchBtn').forEach(btn => {
+
+            btn.addEventListener('click', function () {
+
+                document.getElementById('edit_batch_id').value = this.dataset.id;
+                document.getElementById('edit_batch_receiver').value = this.dataset.receiver;
+                document.getElementById('edit_batch_date').value = this.dataset.date;
+                document.getElementById('edit_batch_remarks').value = this.dataset.remarks;
+
+            });
+
+        });
+    </script>
+
+    <?php if (isset($_GET['invalid_file'])): ?>
+        <script>
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid File',
+                text: 'Only PDF, DOC, DOCX, JPG, JPEG, and PNG files are allowed.'
+            });
+        </script>
+    <?php endif; ?>
 </body>
 
 </html>
