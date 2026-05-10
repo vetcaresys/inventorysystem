@@ -10,26 +10,6 @@ if (
     exit;
 }
 
-/* =========================
-FUNCTION: GET OR CREATE RECEIVER
-========================= */
-function getReceiverId($conn, $receiver_name)
-{
-    $check = $conn->prepare("SELECT receiver_id FROM receivers WHERE name=?");
-    $check->bind_param("s", $receiver_name);
-    $check->execute();
-    $res = $check->get_result();
-
-    if ($res->num_rows > 0) {
-        $row = $res->fetch_assoc();
-        return $row['receiver_id'];
-    } else {
-        $insert = $conn->prepare("INSERT INTO receivers(name) VALUES(?)");
-        $insert->bind_param("s", $receiver_name);
-        $insert->execute();
-        return $insert->insert_id;
-    }
-}
 
 /* =========================
 ADD ITEM
@@ -48,10 +28,7 @@ if (isset($_POST['add_item'])) {
     $unit = $_POST['unit'];
     $item_condition = $_POST['item_condition'];
     $location = $_POST['location'];
-    $receiver_name = $_POST['receiver_name'];
-
-    // 🔹 get receiver_id
-    $receiver_id = getReceiverId($conn, $receiver_name);
+    $batch_id = $_POST['batch_id'];
 
     /* duplicate check */
     $check = $conn->prepare("SELECT item_id FROM equipment_inventory WHERE property_no=?");
@@ -78,7 +55,7 @@ if (isset($_POST['add_item'])) {
             unit,
             item_condition,
             location,
-            receiver_id
+            batch_id
         )
         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
     ");
@@ -97,7 +74,7 @@ if (isset($_POST['add_item'])) {
         $unit,
         $item_condition,
         $location,
-        $receiver_id
+        $batch_id
     );
 
     $stmt->execute();
@@ -126,10 +103,7 @@ if (isset($_POST['update_item'])) {
     $unit = $_POST['unit'];
     $item_condition = $_POST['item_condition'];
     $location = $_POST['location'];
-    $receiver_name = $_POST['receiver_name'];
-
-    // 🔹 get receiver_id
-    $receiver_id = getReceiverId($conn, $receiver_name);
+    $batch_id = $_POST['batch_id'];
 
     /* prevent duplicate property no */
     $check = $conn->prepare("
@@ -146,25 +120,25 @@ if (isset($_POST['update_item'])) {
     }
 
     $stmt = $conn->prepare("
-        UPDATE equipment_inventory SET
-            property_no=?,
-            inventory_tag_no=?,
-            description=?,
-            category=?,
-            equipment_type=?,
-            serial_no=?,
-            date_acquired=?,
-            acquisition_cost=?,
-            quantity=?,
-            unit=?,
-            item_condition=?,
-            location=?,
-            receiver_id=?
-        WHERE item_id=?
+       UPDATE equipment_inventory SET
+        property_no=?,
+        inventory_tag_no=?,
+        description=?,
+        category=?,
+        equipment_type=?,
+        serial_no=?,
+        date_acquired=?,
+        acquisition_cost=?,
+        quantity=?,
+        unit=?,
+        item_condition=?,
+        location=?,
+        batch_id=?
+    WHERE item_id=?
     ");
 
     $stmt->bind_param(
-        "sssssssssdissi",
+        "sssssssdisssii",
         $property_no,
         $inventory_tag_no,
         $description,
@@ -177,7 +151,7 @@ if (isset($_POST['update_item'])) {
         $unit,
         $item_condition,
         $location,
-        $receiver_id,
+        $batch_id,
         $id
     );
 
@@ -187,18 +161,23 @@ if (isset($_POST['update_item'])) {
     exit;
 }
 
-$receivers = $conn->query("SELECT * FROM receivers ORDER BY name ASC");
-
-
 /* =========================
-FETCH ITEMS (WITH RECEIVER)
+FETCH ITEMS WITH BATCH + RECEIVER
 ========================= */
 $items = $conn->query("
-    SELECT equipment_inventory.*, receivers.name AS receiver_name
+    SELECT 
+        equipment_inventory.*,
+        rb.received_date,
+        r.name AS receiver_name
     FROM equipment_inventory
-    LEFT JOIN receivers 
-    ON equipment_inventory.receiver_id = receivers.receiver_id
-    ORDER BY item_id DESC
+
+    LEFT JOIN receiving_batches rb
+    ON equipment_inventory.batch_id = rb.batch_id
+
+    LEFT JOIN receivers r
+    ON rb.receiver_id = r.receiver_id
+
+    ORDER BY equipment_inventory.item_id DESC
 ");
 ?>
 
@@ -273,44 +252,37 @@ $items = $conn->query("
                 User Profile
             </a>
 
-            <a href="inventory_dashboard.php"
-                class="nav-link">
+            <a href="inventory_dashboard.php" class="nav-link">
                 <i class="bi bi-speedometer2"></i>
                 Dashboard
             </a>
 
-            <a href="employees.php"
-                class="nav-link">
+            <a href="employees.php" class="nav-link">
                 <i class="bi bi-people"></i>
                 Employees
             </a>
 
-            <a href="receivers.php"
-                class="nav-link">
+            <a href="receivers.php" class="nav-link">
                 <i class="bi bi-person-badge"></i>
                 Receivers
             </a>
 
-            <a href="inventory_items.php"
-                class="nav-link active">
+            <a href="inventory_items.php" class="nav-link active">
                 <i class="bi bi-box-seam"></i>
                 Inventory Items
             </a>
 
-            <a href="borrow_records.php"
-                class="nav-link">
+            <a href="borrow_records.php" class="nav-link">
                 <i class="bi bi-journal-arrow-up"></i>
                 Borrow Records
             </a>
 
-            <a href="return_records.php"
-                class="nav-link">
+            <a href="return_records.php" class="nav-link">
                 <i class="bi bi-journal-arrow-down"></i>
                 Return Records
             </a>
 
-            <a href="inventory_reports.php"
-                class="nav-link">
+            <a href="inventory_reports.php" class="nav-link">
                 <i class="bi bi-bar-chart-line"></i>
                 Reports
             </a>
@@ -322,8 +294,7 @@ $items = $conn->query("
 
             <hr>
 
-            <a href="../logout.php"
-                class="nav-link text-warning">
+            <a href="../logout.php" class="nav-link text-warning">
                 <i class="bi bi-box-arrow-left"></i>
                 Logout
             </a>
@@ -346,18 +317,30 @@ $items = $conn->query("
                 <div class="row g-3">
 
                     <div class="col-md-3">
+                        <label class="form-label fw-semibold">
+                            Property No
+                        </label>
                         <input name="property_no" class="form-control" placeholder="Property No" required>
                     </div>
 
                     <div class="col-md-3">
+                        <label class="form-label fw-semibold">
+                            Inventory Tag No
+                        </label>
                         <input name="inventory_tag_no" class="form-control" placeholder="Tag No" required>
                     </div>
 
                     <div class="col-md-6">
+                        <label class="form-label fw-semibold">
+                            Description
+                        </label>
                         <input name="description" class="form-control" placeholder="Description" required>
                     </div>
 
                     <div class="col-md-3">
+                        <label class="form-label fw-semibold">
+                            Category
+                        </label>
                         <select name="category" id="category" class="form-control" required>
                             <option>Device</option>
                             <option>Furniture and Fixtures</option>
@@ -367,56 +350,119 @@ $items = $conn->query("
                     </div>
 
                     <div class="col-md-3">
+                        <label class="form-label fw-semibold">
+                            Equipment Type
+                        </label>
                         <select name="equipment_type" id="equipmentType" class="form-control" required>
                             <option value="">Select Type</option>
                         </select>
                     </div>
 
                     <div class="col-md-3">
+                        <label class="form-label fw-semibold">
+                            Serial No
+                        </label>
                         <input name="serial_no" class="form-control" placeholder="Serial No">
                     </div>
 
                     <div class="col-md-3">
+                        <label class="form-label fw-semibold">
+                            Date Acquired
+                        </label>
                         <input type="date" name="date_acquired" class="form-control" required>
                     </div>
 
                     <div class="col-md-3">
-                        <input name="acquisition_cost" class="form-control" placeholder="Cost" required>
+                        <label class="form-label fw-semibold">
+                            Acquisition Cost
+                        </label>
+                        <input type="number" step="0.01" name="acquisition_cost" class="form-control" placeholder="Cost"
+                            required>
                     </div>
 
                     <div class="col-md-2">
-                        <input type="number" name="quantity" class="form-control" value="1" min="1" required>
+                        <label class="form-label fw-semibold">
+                            Quantity
+                        </label>
+                        <input type="hidden" name="quantity" value="1">
+                        <div class="form-control bg-light">
+                            1 (Fixed per item)
+                        </div>
                     </div>
 
                     <div class="col-md-2">
-                        <input name="unit" class="form-control" placeholder="Unit">
-                    </div>
+                        <label class="form-label fw-semibold">
+                            Unit
+                        </label>
+                        <select name="unit" class="form-control" required>
 
-                    <div class="col-md-3">
-                        <select name="item_condition" class="form-control" required>
-                            <option>Good</option>
-                            <option>Repair Needed</option>
-                            <option>Unserviceable</option>
+                            <option value=""> Select Unit </option>
+
+                            <option value="pc">Piece (pc)</option>
+                            <option value="unit">Unit</option>
+                            <option value="set">Set</option>
+                            <option value="box">Box</option>
+                            <option value="pack">Pack</option>
+
                         </select>
                     </div>
 
                     <div class="col-md-3">
+                        <label class="form-label fw-semibold">
+                            Item Condition
+                        </label>
+                        <select name="item_condition" class="form-control" required>
+
+                            <option value=""> Select Condition </option>
+
+                            <option value="Good">Good</option>
+                            <option value="Fair">Fair</option>
+                            <option value="Needs Repair">Needs Repair</option>
+                            <option value="Unserviceable">Unserviceable</option>
+
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">
+                            Location
+                        </label>
                         <input name="location" class="form-control" placeholder="Location" required>
                     </div>
 
                     <div class="col-md-3">
-                        <select name="receiver_name" class="form-control" required>
 
-                            <option value=""> Select Receiver </option>
+                        <label class="form-label fw-semibold">
+                            Receiving Batch
+                        </label>
+
+                        <select name="batch_id" class="form-control" required>
+
+                            <option value="">Select Batch</option>
 
                             <?php
-                            $receivers = $conn->query("SELECT * FROM receivers ORDER BY name ASC");
+                            $batches = $conn->query("
+                                SELECT 
+                                    rb.batch_id,
+                                    rb.received_date,
+                                    r.name
+                                FROM receiving_batches rb
+                                LEFT JOIN receivers r
+                                ON rb.receiver_id = r.receiver_id
+                                ORDER BY rb.batch_id DESC
+                            ");
 
-                            while ($r = $receivers->fetch_assoc()) {
-                            ?>
+                            while ($b = $batches->fetch_assoc()) {
+                                ?>
 
-                                <option value="<?= $r['name']; ?>">
-                                    <?= $r['name']; ?>
+                                <option value="<?= $b['batch_id']; ?>">
+
+                                    Batch #<?= $b['batch_id']; ?>
+                                    -
+                                    <?= $b['name']; ?>
+                                    -
+                                    <?= $b['received_date']; ?>
+
                                 </option>
 
                             <?php } ?>
@@ -442,11 +488,7 @@ $items = $conn->query("
                 <h5 class="mb-0">Inventory Item List</h5>
 
                 <div style="width:300px;">
-                    <input
-                        type="text"
-                        id="searchItem"
-                        class="form-control"
-                        placeholder="Search item...">
+                    <input type="text" id="searchItem" class="form-control" placeholder="Search item...">
                 </div>
 
             </div>
@@ -476,16 +518,12 @@ $items = $conn->query("
 
                             <td>
 
-                                <button
-                                    class="btn btn-info btn-sm"
-                                    data-bs-toggle="modal"
+                                <button class="btn btn-info btn-sm" data-bs-toggle="modal"
                                     data-bs-target="#viewModal<?= $row['item_id']; ?>">
                                     View
                                 </button>
 
-                                <button
-                                    class="btn btn-warning btn-sm"
-                                    data-bs-toggle="modal"
+                                <button class="btn btn-warning btn-sm" data-bs-toggle="modal"
                                     data-bs-target="#editModal<?= $row['item_id']; ?>">
                                     Edit
                                 </button>
@@ -501,9 +539,7 @@ $items = $conn->query("
 
 
                         <!-- EDIT MODAL -->
-                        <div class="modal fade"
-                            id="editModal<?= $row['item_id']; ?>"
-                            tabindex="-1">
+                        <div class="modal fade" id="editModal<?= $row['item_id']; ?>" tabindex="-1">
 
                             <div class="modal-dialog modal-lg">
                                 <div class="modal-content">
@@ -515,10 +551,7 @@ $items = $conn->query("
                                                 Edit Inventory Item
                                             </h5>
 
-                                            <button
-                                                type="button"
-                                                class="btn-close"
-                                                data-bs-dismiss="modal">
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal">
                                             </button>
 
                                         </div>
@@ -526,34 +559,25 @@ $items = $conn->query("
 
                                         <div class="modal-body">
 
-                                            <input
-                                                type="hidden"
-                                                name="item_id"
-                                                value="<?= $row['item_id']; ?>">
+                                            <input type="hidden" name="item_id" value="<?= $row['item_id']; ?>">
 
                                             <div class="row g-3">
 
                                                 <div class="col-md-6">
                                                     <label>Property No</label>
-                                                    <input
-                                                        name="property_no"
-                                                        class="form-control"
+                                                    <input name="property_no" class="form-control"
                                                         value="<?= $row['property_no']; ?>">
                                                 </div>
 
                                                 <div class="col-md-6">
                                                     <label>Inventory Tag No</label>
-                                                    <input
-                                                        name="inventory_tag_no"
-                                                        class="form-control"
+                                                    <input name="inventory_tag_no" class="form-control"
                                                         value="<?= $row['inventory_tag_no']; ?>">
                                                 </div>
 
                                                 <div class="col-md-12">
                                                     <label>Description</label>
-                                                    <input
-                                                        name="description"
-                                                        class="form-control"
+                                                    <input name="description" class="form-control"
                                                         value="<?= $row['description']; ?>">
                                                 </div>
 
@@ -569,64 +593,50 @@ $items = $conn->query("
                                                         <option <?= ($row['category'] == "Office Equipment") ? 'selected' : ''; ?>>
                                                             Office Equipment
                                                         </option>
+                                                        <option <?= ($row['category'] == "Vehicles") ? 'selected' : ''; ?>>
+                                                            Vehicles
+                                                        </option>
                                                     </select>
                                                 </div>
 
                                                 <div class="col-md-6">
                                                     <label>Equipment Type</label>
-                                                    <input
-                                                        name="equipment_type"
-                                                        class="form-control"
+                                                    <input name="equipment_type" class="form-control"
                                                         value="<?= $row['equipment_type']; ?>">
                                                 </div>
 
                                                 <div class="col-md-6">
                                                     <label>Serial No</label>
-                                                    <input
-                                                        name="serial_no"
-                                                        class="form-control"
+                                                    <input name="serial_no" class="form-control"
                                                         value="<?= $row['serial_no']; ?>">
                                                 </div>
 
                                                 <div class="col-md-3">
                                                     <label>Date Acquired</label>
-                                                    <input
-                                                        type="date"
-                                                        name="date_acquired"
-                                                        class="form-control"
+                                                    <input type="date" name="date_acquired" class="form-control"
                                                         value="<?= $row['date_acquired']; ?>">
                                                 </div>
 
                                                 <div class="col-md-3">
                                                     <label>Acquisition Cost</label>
-                                                    <input
-                                                        type="number"
-                                                        step="0.01"
-                                                        name="acquisition_cost"
-                                                        class="form-control"
-                                                        value="<?= $row['acquisition_cost']; ?>">
+                                                    <input type="number" step="0.01" name="acquisition_cost"
+                                                        class="form-control" value="<?= $row['acquisition_cost']; ?>">
                                                 </div>
 
                                                 <div class="col-md-4">
                                                     <label>Quantity</label>
-                                                    <input
-                                                        name="quantity"
-                                                        class="form-control"
-                                                        value="<?= $row['quantity']; ?>">
+                                                    <input type="number" name="quantity" class="form-control"
+                                                        value="<?= $row['quantity']; ?>" min="1">
                                                 </div>
 
                                                 <div class="col-md-4">
                                                     <label>Unit</label>
-                                                    <input
-                                                        name="unit"
-                                                        class="form-control"
-                                                        value="<?= $row['unit']; ?>">
+                                                    <input name="unit" class="form-control" value="<?= $row['unit']; ?>">
                                                 </div>
 
                                                 <div class="col-md-4">
                                                     <label>Condition</label>
-                                                    <select name="item_condition"
-                                                        class="form-control">
+                                                    <select name="item_condition" class="form-control">
 
                                                         <option <?= ($row['item_condition'] == "Good") ? 'selected' : ''; ?>>
                                                             Good
@@ -645,18 +655,43 @@ $items = $conn->query("
 
                                                 <div class="col-md-6">
                                                     <label>Location</label>
-                                                    <input
-                                                        name="location"
-                                                        class="form-control"
+                                                    <input name="location" class="form-control"
                                                         value="<?= $row['location']; ?>">
                                                 </div>
 
                                                 <div class="col-md-6">
-                                                    <label>Received By</label>
-                                                    <input
-                                                        name="receiver_name"
-                                                        class="form-control"
-                                                        value="<?= $row['receiver_name']; ?>">
+
+                                                    <label>Receiving Batch</label>
+
+                                                    <select name="batch_id" class="form-control">
+
+                                                        <?php
+                                                        $batchList = $conn->query("
+                                                            SELECT rb.batch_id, rb.received_date, r.name
+                                                            FROM receiving_batches rb
+                                                            LEFT JOIN receivers r
+                                                            ON rb.receiver_id = r.receiver_id
+                                                            ORDER BY rb.batch_id DESC
+                                                        ");
+
+                                                        while ($b = $batchList->fetch_assoc()) {
+                                                            ?>
+
+                                                            <option value="<?= $b['batch_id']; ?>"
+                                                                <?= ($row['batch_id'] == $b['batch_id']) ? 'selected' : ''; ?>>
+
+                                                                Batch #<?= $b['batch_id']; ?>
+                                                                -
+                                                                <?= $b['name']; ?>
+                                                                -
+                                                                <?= $b['received_date']; ?>
+
+                                                            </option>
+
+                                                        <?php } ?>
+
+                                                    </select>
+
                                                 </div>
 
                                             </div>
@@ -664,16 +699,11 @@ $items = $conn->query("
 
 
                                         <div class="modal-footer">
-                                            <button
-                                                type="button"
-                                                class="btn btn-secondary"
-                                                data-bs-dismiss="modal">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                                                 Cancel
                                             </button>
 
-                                            <button
-                                                name="update_item"
-                                                class="btn btn-primary">
+                                            <button name="update_item" class="btn btn-primary">
                                                 Update
                                             </button>
                                         </div>
@@ -684,9 +714,7 @@ $items = $conn->query("
                         </div>
 
                         <!-- VIEW MODAL -->
-                        <div class="modal fade"
-                            id="viewModal<?= $row['item_id']; ?>"
-                            tabindex="-1">
+                        <div class="modal fade" id="viewModal<?= $row['item_id']; ?>" tabindex="-1">
 
                             <div class="modal-dialog modal-lg">
                                 <div class="modal-content">
@@ -696,10 +724,7 @@ $items = $conn->query("
                                             Inventory Item Details
                                         </h5>
 
-                                        <button
-                                            type="button"
-                                            class="btn-close"
-                                            data-bs-dismiss="modal">
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal">
                                         </button>
 
                                     </div>
@@ -810,10 +835,14 @@ $items = $conn->query("
 
                                             <div class="col-md-6">
                                                 <label class="fw-bold">
-                                                    Received By
+                                                    Receiving Batch
                                                 </label>
                                                 <div class="form-control">
+                                                    Batch #<?= $row['batch_id']; ?>
+                                                    -
                                                     <?= $row['receiver_name']; ?>
+                                                    -
+                                                    <?= $row['received_date']; ?>
                                                 </div>
                                             </div>
 
@@ -824,20 +853,13 @@ $items = $conn->query("
 
                                     <div class="modal-footer">
 
-                                        <button
-                                            type="button"
-                                            class="btn btn-secondary"
-                                            data-bs-dismiss="modal">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                                             Close
                                         </button>
 
                                         <!-- DIRECT TO EDIT -->
-                                        <button
-                                            type="button"
-                                            class="btn btn-warning"
-                                            data-bs-dismiss="modal"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#editModal<?= $row['item_id']; ?>">
+                                        <button type="button" class="btn btn-warning" data-bs-dismiss="modal"
+                                            data-bs-toggle="modal" data-bs-target="#editModal<?= $row['item_id']; ?>">
                                             Edit This Item
                                         </button>
 
@@ -874,7 +896,7 @@ $items = $conn->query("
             </div>
 
             <script>
-                document.addEventListener("DOMContentLoaded", function() {
+                document.addEventListener("DOMContentLoaded", function () {
 
                     let rows = document.querySelectorAll(".item-row");
                     let perPage = 5;
@@ -905,14 +927,14 @@ $items = $conn->query("
                         nextBtn.style.pointerEvents = (page === totalPages) ? "none" : "auto";
                     }
 
-                    prevBtn.addEventListener("click", function() {
+                    prevBtn.addEventListener("click", function () {
                         if (currentPage > 1) {
                             currentPage--;
                             showPage(currentPage);
                         }
                     });
 
-                    nextBtn.addEventListener("click", function() {
+                    nextBtn.addEventListener("click", function () {
                         if (currentPage < totalPages) {
                             currentPage++;
                             showPage(currentPage);
@@ -940,13 +962,13 @@ $items = $conn->query("
 
     <!-- FOR THE SEARCHABLE TABLE -->
     <script>
-        document.getElementById('searchItem').addEventListener('keyup', function() {
+        document.getElementById('searchItem').addEventListener('keyup', function () {
 
             let value = this.value.toLowerCase();
             let rows = document.querySelectorAll(".item-row");
             let found = false;
 
-            rows.forEach(function(row) {
+            rows.forEach(function (row) {
 
                 let text = row.textContent.toLowerCase();
 
@@ -1003,38 +1025,6 @@ $items = $conn->query("
         </script>
     <?php endif; ?>
 
-    <!-- AUTO SEARCH RECEIVER -->
-    <script>
-        document.getElementById("receiverInput").addEventListener("input", function() {
-
-            let query = this.value;
-
-            if (query.length < 1) return;
-
-            fetch("receiver_search.php?term=" + query)
-                .then(res => res.json())
-                .then(data => {
-
-                    let list = document.getElementById("receiverList");
-                    list.innerHTML = "";
-
-                    data.forEach(name => {
-                        let item = document.createElement("button");
-                        item.type = "button";
-                        item.classList.add("list-group-item", "list-group-item-action");
-                        item.innerText = name;
-
-                        item.onclick = () => {
-                            document.getElementById("receiverInput").value = name;
-                            list.innerHTML = "";
-                        };
-
-                        list.appendChild(item);
-                    });
-                });
-        });
-    </script>
-
     <!-- FOR THE SELECTION OF EQUIPMENT TYPE -->
     <script>
         const equipmentTypes = {
@@ -1079,7 +1069,7 @@ $items = $conn->query("
             ]
         };
 
-        document.getElementById("category").addEventListener("change", function() {
+        document.getElementById("category").addEventListener("change", function () {
             let typeSelect = document.getElementById("equipmentType");
             let selected = this.value;
 
