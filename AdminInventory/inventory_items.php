@@ -231,6 +231,19 @@ $items = $conn->query("
             border-radius: 15px;
             box-shadow: 0 6px 20px rgba(0, 0, 0, .05);
         }
+        /* 1. Hide detailed columns by default */
+.details-col {
+    display: none;
+}
+
+/* 2. When table is in 'show-details' mode: */
+.show-details .details-col {
+    display: table-cell; /* Show Batch/Date/Location */
+}
+
+.show-details .main-col {
+    display: none; /* Hide Category/Qty/Condition */
+}
     </style>
 
 </head>
@@ -482,39 +495,47 @@ $items = $conn->query("
 
         <!-- TABLE -->
         <div class="card card-custom p-3">
-
-            <div class="d-flex justify-content-between align-items-center mb-3">
-
-                <h5 class="mb-0">Inventory Item List</h5>
-
-                <div style="width:300px;">
-                    <input type="text" id="searchItem" class="form-control" placeholder="Search item...">
-                </div>
-
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">Inventory Item List</h5>
+        <div class="d-flex gap-2">
+            <button id="toggleDetails" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-eye"></i> Switch to Extended View
+            </button>
+            <div style="width:300px;">
+                <input type="text" id="searchItem" class="form-control" placeholder="Search item...">
             </div>
+        </div>
+    </div>
 
-            <table class="table table-hover text-center" id="itemTable">
-                <thead class="table-light">
-                    <tr>
-                        <th>Description</th>
-                        <th>Category</th>
-                        <th>Qty</th>
-                        <th>Condition</th>
-                        <th>Location</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
+    <table class="table table-hover text-center" id="itemTable">
+        <thead class="table-light">
+            <tr>
+                <th>Description</th>
+                <th class="main-col">Category</th>
+                <th class="main-col">Qty</th>
+                <th class="main-col">Condition</th>
+                <th class="details-col">Batch #</th>
+                <th class="details-col">Receiver</th>
+                <th class="details-col">Date Acquired</th>
+                <th class="details-col">Location</th>
+                
+                <th>Action</th>
+            </tr>
+        </thead>
 
-                <tbody>
+        <tbody>
+            <?php while ($row = $items->fetch_assoc()) { ?>
+                <tr class="item-row">
+                    <td><?= $row['description']; ?></td>
 
-                    <?php while ($row = $items->fetch_assoc()) { ?>
+                    <td class="main-col"><?= $row['category']; ?></td>
+                    <td class="main-col"><?= $row['quantity']; ?></td>
+                    <td class="main-col"><?= $row['item_condition']; ?></td>
 
-                        <tr class="item-row">
-                            <td><?= $row['description']; ?></td>
-                            <td><?= $row['category']; ?></td>
-                            <td><?= $row['quantity']; ?></td>
-                            <td><?= $row['item_condition']; ?></td>
-                            <td><?= $row['location']; ?></td>
+                    <td class="details-col">#<?= $row['batch_id']; ?></td>
+                    <td class="details-col"><?= $row['receiver_name']; ?></td>
+                    <td class="details-col"><?= $row['date_acquired']; ?></td>
+                    <td class="details-col"><?= $row['location']; ?></td>
 
                             <td>
 
@@ -1029,13 +1050,17 @@ $items = $conn->query("
     <script>
         const equipmentTypes = {
             "Device": [
-                "Computer (Desktop/Laptop)",
+                "Computer Desktop",
+                "Computer Laptop",
                 "Printer",
                 "Scanner",
                 "Projector",
                 "CCTV Camera",
-                "Network Router / Switch",
-                "UPS"
+                "Network Router",
+                "Network Switch",
+                "UPS",
+                "Keyboard",
+                "Mouse"
             ],
             "Furniture and Fixtures": [
                 "Office Chair",
@@ -1052,13 +1077,6 @@ $items = $conn->query("
                 "Shredder",
                 "Air Conditioner",
                 "Telephone System"
-            ],
-            "Supplies": [
-                "Bond Paper",
-                "Ink / Toner",
-                "Ballpen",
-                "Envelopes",
-                "Notebooks"
             ],
             "Vehicles": [
                 "Motorcycle",
@@ -1082,6 +1100,25 @@ $items = $conn->query("
                     opt.textContent = type;
                     typeSelect.appendChild(opt);
                 });
+            }
+        });
+
+        document.getElementById('toggleDetails').addEventListener('click', function() {
+            const table = document.getElementById('itemTable');
+            const noResultCol = document.getElementById('noResultCol');
+            
+            const isExtended = table.classList.toggle('show-details');
+            
+            if (isExtended) {
+                this.innerHTML = '<i class="bi bi-table"></i> Show Basic Info';
+                this.classList.replace('btn-outline-secondary', 'btn-secondary');
+                // Extended has 6 columns: Desc (1) + Extended (4) + Action (1)
+                if(noResultCol) noResultCol.colSpan = 6; 
+            } else {
+                this.innerHTML = '<i class="bi bi-eye"></i> Switch to Extended View';
+                this.classList.replace('btn-secondary', 'btn-outline-secondary');
+                // Basic has 5 columns: Desc (1) + Basic (3) + Action (1)
+                if(noResultCol) noResultCol.colSpan = 5; 
             }
         });
     </script>
